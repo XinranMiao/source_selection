@@ -1,11 +1,17 @@
 ---
 title: "Create Subsampled Data"
-output: html_notebook
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Put the title of your vignette here}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+
 ---
 ```{r}
 library("dplyr")
 library("readr")
 library("stringr")
+library("svcca")
 ```
 
 This notebook creates a subsampled dataset that we can use for experimentation.
@@ -44,18 +50,6 @@ for (i in seq_along(s2_dirs)) {
 Next, we extract metadata (pathnames, seasons) associated with this subsample.
 
 ```{r}
-parse_path <- function(path) {
-  comps <- strsplit(basename(path), "_|\\.")[[1]]
-  data.frame(
-    "image_path" = path,
-    "image_basename" = basename(path),
-    "roi" = comps[1],
-    "season" = comps[2],
-    "scene" = comps[4],
-    "patch" = comps[5]
-  )
-}
-
 metadata <- lapply(unlist(scenes), parse_path)
 metadata <- do.call(rbind, metadata)
 ```
