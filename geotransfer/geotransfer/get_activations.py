@@ -23,26 +23,22 @@ class SaveOutput:
         self.outputs = []
 
 
-
-def get_all_activations(model,layers,img,fraction=0.4):
+def activations(model, layers, x, device=None):
     """Get all activation vectors over images for a model.
-
     :param model: A pytorch model
     :type model: currently is Net defined by ourselves
     :param layers: One or more layers that activations are desired
     :type layers: torch.nn.modules.container.Sequential
-    :param img: A 4-d tensor containing the test datapoints from which activations are desired.
+    :param x: A 4-d tensor containing the test datapoints from which activations are desired.
                 The 1st dimension should be the number of test datapoints.
                 The next 3 dimensions should match the input of the model
-    :type img: torch.Tensor
-    :param fraction: If defined, then a random fraction of img will be chosen.
-    :type fraction: float
+    :type x: torch.Tensor
+    :param device: A torch.device, specifying whether to put the input to cpu or gpu.
+    :type device: torch.device
     :return (output): A list containing activations of all specified layers.
     """
-    l = len(img)
-    num_imgs = round(l*fraction)
-    img_sub = img[torch.tensor(random.sample(range(l),num_imgs))]
-    img_sub = torch.from_numpy(np.array(img_sub,dtype='f'))
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     save_output = SaveOutput()
     hook_handles = []
@@ -51,12 +47,40 @@ def get_all_activations(model,layers,img,fraction=0.4):
         handle = layer.register_forward_hook(save_output)
         hook_handles.append(handle)
 
-    out = model(img_sub)
-    output = save_output.outputs.copy()
+    with torch.no_grad():
+      x = x.to(device)
+      out = model(x)
 
-    del save_output,hook_handles,out
+    output = save_output.outputs.copy()
+    del save_output, hook_handles, out
     return output
 
+
+def loader_activations(loader, model, layers):
+    """
+    :param loader: A pytorch DataLoader, over which all activations will be extracted.
+    :type loader: torch.DataLoader
+    :param model: A pytorch model containing layers in the layers list
+    :type model: nn.Module
+    :param layers: One or more layers that activations are desired
+    :type layers: torch.nn.modules.container.Sequential
+    :return (h): A dictionary whose keys are layer_{i} for the i^th element of
+      `layers` and whose values are torch tensors with dimension samples x
+      features x spatial.
+    """
+    h = {}
+    for i in range(len(layers)):
+        h[f"layer_{i}"] = []
+
+    for x, _ in loader:
+        hx = activations(model, layers, x[:, :, :64, :64])
+        for i, l in enumerate(layers):
+            h[f"layer_{i}"].append(hx[i])
+
+    for i in range(len(layers)):
+        h[f"layer_{i}"] = torch.cat(h[f"layer_{i}"])
+
+    return h
 
 
 def get_svf_acts(acts = None, # should be a np.array
@@ -67,7 +91,7 @@ def get_svf_acts(acts = None, # should be a np.array
     :acts: An 4d array of activations. If not specified, then all_acts and layer_num should be specified.
                                          If specified, then all_acts and layer_num need not be specified.
     :type acts: numpy.ndarray
-    :param all_acts: A list of 4-d activations. Usually the output of get_all_activations.
+    :param all_acts: A list of 4-d activations. Usually the output of activations.
     :type all_acts: list
     :layer_num: Defines which layer(s) of all_acts is desired
     :type layer: int
