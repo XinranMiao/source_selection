@@ -8,7 +8,19 @@ from scipy import interpolate
 import random
 from matplotlib import pyplot as plt
 
-import cca_core
+def np2torch(X,idx):
+    '''
+    :para X: a 4-d array
+    :type X: np.ndarray
+    :para idx: a list of indices. e.g., [0,1]
+    :type idx: list
+    
+    :return: a torch.tensor with desired indices
+     
+    '''
+    Y = X[torch.tensor(idx)]
+    Y = torch.from_numpy(np.array(Y,dtype = 'f'))
+    return Y
 
 
 
