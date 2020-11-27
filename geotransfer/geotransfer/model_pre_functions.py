@@ -29,7 +29,7 @@ def get_dict(y,num_classes=10):
     
     return d2
 
-def prepare_data(x,y):
+def prepare_data(x,y,d2):
     y = np.array([d2[k] for k in y])
     y = torch.from_numpy(y)
     
@@ -64,6 +64,7 @@ def extract_features(x,y, batch_size):
     return x_train,y_train
 
 def train_model(x_train,y_train, model, criterion, optimizer,
+                model_type='CBR' ,
                 n_epochs=2,
                 batch_size=8):
 
@@ -85,7 +86,10 @@ def train_model(x_train,y_train, model, criterion, optimizer,
         
             optimizer.zero_grad()
             # in case you wanted a semi-full example
-            outputs = model.classifier(batch_x)
+            if model_type=='CBR':
+                outputs = model(batch_x)
+            else:
+                outputs = model.classifier(batch_x)
             loss = criterion(outputs,batch_y)
 
             training_loss.append(loss.item())
@@ -96,7 +100,7 @@ def train_model(x_train,y_train, model, criterion, optimizer,
         print('epoch: \t', epoch, '\t training loss: \t', training_loss)
     return model
 
-def pred_acc(x_train,y_train,model,batch_size=8):
+def pred_acc(x_train,y_train,model,model_type = 'CBR',batch_size=8):
     # prediction for training set
     prediction = []
     target = []
@@ -109,7 +113,10 @@ def pred_acc(x_train,y_train,model,batch_size=8):
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
     
         with torch.no_grad():
-            output = model.classifier(batch_x)
+            if model_type=='CBR':
+                output = model(batch_x)
+            else:
+                output = model.classifier(batch_x)
 
         softmax = torch.exp(output).cpu()
         prob = list(softmax.numpy())
@@ -126,3 +133,80 @@ def pred_acc(x_train,y_train,model,batch_size=8):
     del prediction,target,permutation,accuracy
     return avg
 
+class Net(Module):   
+    def __init__(self):
+        super(Net, self).__init__()
+
+        self.cnn_layers = Sequential(
+            # Defining a 2D convolution layer
+            Conv2d(13, 64, kernel_size=(5,5), stride=1, padding=2),
+            BatchNorm2d(64),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=(2,2),padding = 1),
+            
+            Conv2d(64, 128, kernel_size=(5,5), stride=1, padding=2),
+            BatchNorm2d(128),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=2, padding = 1),
+            
+            Conv2d(128, 256, kernel_size=(5,5), stride=1, padding=2),
+            BatchNorm2d(256),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=2, padding = 1),
+            
+            Conv2d(256, 512, kernel_size=(5,5), stride=1, padding=2),
+            BatchNorm2d(512),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=2, padding = 1),
+            
+            AdaptiveAvgPool2d((1, 1))
+        )
+        self.linear_layers = Sequential(
+            Linear(in_features= 512, out_features=10, bias = True)
+        )
+        
+
+
+    # Defining the forward pass    
+    def forward(self, x):
+        x = self.cnn_layers(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear_layers(x)
+        return x
+
+class smallNet(Module):   
+    def __init__(self):
+        super(smallNet, self).__init__()
+
+        self.cnn_layers = Sequential(
+            Conv2d(13, 32, kernel_size=(7,7), stride=1, padding=3),
+            BatchNorm2d(32),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=(2,2),padding = 1),
+            
+            Conv2d(32, 64, kernel_size=(7,7), stride=1, padding=3),
+            BatchNorm2d(64),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=2, padding = 1),
+            
+            Conv2d(64, 128, kernel_size=(7,7), stride=1, padding=3),
+            BatchNorm2d(128),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=2, padding = 1),
+            
+            Conv2d(128, 256, kernel_size=(7,7), stride=1, padding=3),
+            BatchNorm2d(256),
+            ReLU(inplace=True),
+            MaxPool2d(kernel_size=(3,3), stride=2, padding = 1),
+            
+            AdaptiveAvgPool2d((1, 1))
+        )
+        self.linear_layers = Sequential(
+            Linear(in_features= 256, out_features=10, bias = True)
+        )
+    def forward(self, x):
+        x = self.cnn_layers(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear_layers(x)
+        return x
+        

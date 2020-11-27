@@ -1,3 +1,6 @@
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.cluster import KMeans
 def read_data(filename):
     bands = loader.S2Bands.ALL
     if isinstance(bands, (list, tuple)):

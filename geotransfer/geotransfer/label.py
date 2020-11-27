@@ -1,6 +1,11 @@
+import rasterio
 import pandas as pd
 import numpy as np
 from .sen12ms_dataLoader import LCBands
+from .sen12ms_dataLoader import read_data
+from tqdm import tqdm
+from sklearn.model_selection import train_test_split
+from sklearn.cluster import KMeans
 
 label_idx = {'Original':np.array(range(17))+1,
         'Simplified':np.array([1,1,1,1,1,2,2,3,3,4,5,6,7,6,8,9,10])}
@@ -41,3 +46,24 @@ def get_label(filename):
     prob = Labels.labels_prob(sim)
     label = Labels.image_label(prob)
     return label
+
+
+class load_data:
+    def get_df_label(self):
+        self['label_id'] = self.apply(lambda row: get_label(row.label_path),axis = 1)
+        return self
+    def get_cluster(self,n_clusters,):
+        kmeans=KMeans(n_clusters=n_clusters, random_state=0).fit(self[['longitude','latitude']])
+        self['clusters']=kmeans.labels_  
+        return self
+    def load_img(self):
+        X = []
+        for img_path in tqdm(self['image_path']):
+            img = read_data(img_path)[0]
+            X.append(img)
+        X = np.array(X)
+        y = self['label_id'].values
+        return X,y
+
+
+
