@@ -1,0 +1,20 @@
+# Python build file
+
+universe = vanilla
+log = build.log
+error = build.err
+output = build.out
+# Choose a version of Python from the table above
+transfer_input_files = model_pre_functions.py,images.tar.gz, conf_chtc.yaml,metadata_clusters_chtc.csv,run_python.sh,geotransfer.tar.gz ,http://proxy.chtc.wisc.edu/SQUID/chtc/python36.tar.gz
+executable = run_python.sh
+request_gpus = 1
++WantGPULab = true
++GPUJobLength = "short"
+requirements = (CUDACapability == 7.5)
++IsBuildJob = true
+requirements = (OpSysMajorVer =?= 7)
+request_cpus = 
+request_memory = 20GB
+request_disk = 20GB
+
+queue
