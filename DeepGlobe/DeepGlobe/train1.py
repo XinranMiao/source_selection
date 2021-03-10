@@ -1,15 +1,10 @@
-#!/usr/bin/env python
-"""
-Training/Validation Module
-"""
-from pathlib import Path
-import argparse
 import os
 import re
 import numpy as np
 import torch
 import torch.nn.functional as F
-from data import create_dir
+import data
+#from data import create_dir
 
 def check_dim(input_data):
     if len(input_data.shape) == 3:
@@ -23,8 +18,6 @@ def l2_reg(params, device):
     for param in params:
         penalty += torch.norm(param, 2) ** 2
     return penalty
-
-
 def loss(y_hat, y, params, device, smooth=0.2, weights=[1/7,1/7,1/7,1/7,1/7,1/7,1/7], lambda_reg=0.0005):
     penalty = l2_reg(params, device)
     dice = dice_loss(y_hat, y, device, weights, smooth)
@@ -46,8 +39,6 @@ def bce_loss(y_hat, y, device, weights):
     for k in range(y.shape[1]):
         w_mat[:, k, :, :] = weights[k]
     return F.binary_cross_entropy(y_hat, y, weight=w_mat, reduction="mean")
-
-
 def dice_bce_loss(y_hat, y, device, smooth=0.2, weights=[0.6, 0.9, 0.2]):
     y_hat = y_hat.view(-1)
     y = y.view(-1)
@@ -58,7 +49,6 @@ def dice_bce_loss(y_hat, y, device, smooth=0.2, weights=[0.6, 0.9, 0.2]):
     dice_loss = 1 - (2. * intersection + smooth)/(y_hat.sum() + y.sum() + smooth)
     BCE = F.binary_cross_entropy(y_hat, y, reduction="mean")
     return BCE + dice_loss
-
 
 def train_epoch(model, loader, optimizer, device, epoch=0):
     loss_ = 0
@@ -81,20 +71,22 @@ def train_epoch(model, loader, optimizer, device, epoch=0):
         log_batch(epoch, i, n, loss_, loader.batch_size)
 
     return loss_ / n
-
-
-def validate(model, loader):
-    loss = 0
+def validate(model, loader,device):
+    l = 0
     model.eval()
     batch_size = False
-    for i, (x, y) in enumerate(loader):
+    for i,d in enumerate(loader):
         with torch.no_grad():
-            y_hat = model(x)
-            y_hat = torch.tensor(y_hat,dtype = torch.float64)
-            loss += loss(y_hat, y)
+            x = d['image'].to(device)
+            y = d['mask'].to(device)
+            y_hat = model(x).to(device)
+            y_hat = torch.tensor(y_hat,dtype = torch.float64).to(device)
 
-    return loss / len(loader.dataset)
+            y = check_dim(y)
+            y_hat = check_dim(y_hat)
+            l += loss(y_hat, y,model.parameters(), device)
 
+    return l / len(loader.dataset)
 
 def log_batch(epoch, i, n, loss, batch_size):
     print(
@@ -105,7 +97,7 @@ def log_batch(epoch, i, n, loss, batch_size):
 
 
 def predictions(model, ds, out_dir, device):
-    create_dir(out_dir)
+    data.create_dir(out_dir)
 
     for i in range(len(ds)):
         x, y = ds[i]
@@ -117,42 +109,21 @@ def predictions(model, ds, out_dir, device):
             np.save(out_dir / f"y_hat-{ix}.npy", y_hat.cpu()[0])
             np.save(out_dir / f"y-{ix}.npy", y)
             np.save(out_dir / f"x-{ix}.npy", x)
-
-def further_train(model,idx,optimizer,loader):
-    x = loader.dataset[idx]['image']
+def further_train(model,idx,optimizer,loader,device):
+    x = loader.dataset[idx]['image'].to(device)
     x = check_dim(x)
-    
+
     y = loader.dataset[idx]['mask']
     y = check_dim(y)
-    y = torch.tensor(y,dtype = torch.float64)
-    print('loaded x y')
-    
+    y = torch.tensor(y,dtype = torch.float64).to(device)
+
     optimizer.zero_grad()
-    y_hat = model(x)
-    print('got y hat')
-    y_hat = torch.tensor(y_hat,dtype = torch.float64)
-    l = loss(y_hat, y, model.parameters(),args['device'])
+    y_hat = model(x).to(device)
+    y_hat = torch.tensor(y_hat,dtype = torch.float64).to(device)
+    l = loss(y_hat, y, model.parameters(),device)
     l.backward()
     optimizer.step()
 
     # compute losses
     loss_ = l.item()
     return loss_
-
-def validate(model, loader):
-    l = 0
-    model.eval()
-    batch_size = False
-    for i,d in enumerate(loader):
-        with torch.no_grad():
-            x = d['image'].to(args["device"])
-            y = d['mask'].to(args["device"])
-            y_hat = model(x)
-            y_hat = torch.tensor(y_hat,dtype = torch.float64)
-            
-            y = check_dim(y)
-            y_hat = check_dim(y_hat)
-            l += loss(y_hat, y,model.parameters(), args["device"])
-
-    return l / len(loader.dataset)
-    

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,7 +18,20 @@ class ConvBlock(nn.Module):
         x = F.relu(self.conv2(x))
         return x
 
+class ConvBlock(nn.Module):
+    def __init__(self, inchannels, outchannels, dropout, spatial, padding=1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(inchannels, outchannels, kernel_size=3, padding=padding)
+        self.conv2 = nn.Conv2d(outchannels, outchannels, kernel_size=3, padding=padding)
+        if spatial:
+            self.dropout = nn.Dropout2d(p=dropout)
+        else:
+            self.dropout = nn.Dropout(p=dropout)
 
+    def forward(self, x):
+        x = F.relu(self.dropout(self.conv1(x)))
+        x = F.relu(self.conv2(x))
+        return x
 class UpBlock(nn.Module):
     def __init__(self, inchannels, outchannels, dropout, spatial):
         super().__init__()
@@ -87,3 +99,4 @@ class Unet(nn.Module):
 
         x = self.seg_layer(x)
         return self.softmax(x)
+

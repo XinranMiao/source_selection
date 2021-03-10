@@ -5,11 +5,11 @@ import glob
 import numpy as np
 import os
 import random
-import shutil
-import tarfile
+#import shutil
+#import tarfile
 import torch
 import torchvision.transforms.functional as TF
-import urllib.request
+#import urllib.request
 import cv2 
 from skimage.util.shape import view_as_windows
 
