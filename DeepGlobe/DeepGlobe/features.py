@@ -49,4 +49,26 @@ def extract_features(x,model,device,flatten = False,batch_size = 1):
 
     del inputs,input_data
     return data_x
-                            
+                           
+
+class SaveOutput:
+    def __init__(self):
+        self.outputs = []
+        
+    def __call__(self, module, module_in, module_out):
+        self.outputs.append(module_out)
+        
+    def clear(self):
+        self.outputs = []
+
+def get_activations(model,layers,img,device):
+    save_output = SaveOutput()
+    hook_handles = []
+    for layer in layers:
+        handle = layer.register_forward_hook(save_output)
+        hook_handles.append(handle)
+    out = model(img).to(device)
+    output = save_output.outputs.copy()
+    output = output[len(output)-1].view(output[len(output)-1].size(0), -1)
+    del save_output,hook_handles,out
+    return output 

@@ -59,7 +59,23 @@ print(len(train_loader.dataset), len(validation_loader.dataset),len(test_loader.
 
 print('Splitted dataset')
 vggmodel = models.vgg16(pretrained=True).to(args["device"])
-print('loaded vggmodel')
+resnet18 = models.resnet18(pretrained=True).to(args["device"])
+print('loaded vgg & resnet model')
+layer_resnet=[resnet18.conv1,resnet18.bn1,resnet18.relu,resnet18.maxpool,resnet18.layer1,resnet18.avgpool]
+layer_vgg = [vggmodel.features,vggmodel.avgpool]
+for i, d in enumerate(train_loader):
+    x = d['image'].to(args["device"])
+    vgg_feature=get_activations(vggmodel,layer_vgg,x,args['device'])
+    resnet_feature=get_activations(resnet18,layer_resnet,x,args['device'])
+    if i == 0:
+        vgg_features = vgg_feature
+        resnet_features = resnet_feature
+    else:
+        vgg_features = torch.cat((vgg_features, vgg_feature), 0)
+        resnet_features = torch.cat((resnet_features, resnet_feature), 0)
+    print(i,'vgg',vgg_features.shape,'resnet',resnet_feature.shape)
+np.save('vgg_features.npy', np.array(vgg_features))
+np.save('resnet_features.npy', np.array(resnet_features))
 #start_time = time.time()
 #for i, d in enumerate(train_loader):
  #   x = d['image'].to(args["device"])
