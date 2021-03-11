@@ -1,0 +1,40 @@
+000 (8892499.000.000) 2021-03-11 10:56:27 Job submitted from host: <128.104.101.92:9618?addrs=128.104.101.92-9618+[2607-f388-107c-501-a236-9fff-fe3c-caa8]-9618&alias=submit2.chtc.wisc.edu&noUDP&sock=schedd_77175_3596>
+...
+040 (8892499.000.000) 2021-03-11 10:56:33 Started transferring input files
+	Transferring to host: <128.105.245.10:9618?addrs=128.105.245.10-9618&alias=gpu2000.chtc.wisc.edu&noUDP&sock=slot1_1_7994_3efe_170839>
+...
+040 (8892499.000.000) 2021-03-11 10:57:12 Finished transferring input files
+...
+001 (8892499.000.000) 2021-03-11 10:57:13 Job executing on host: <128.105.245.10:9618?addrs=128.105.245.10-9618&alias=gpu2000.chtc.wisc.edu&noUDP&sock=startd_6925_8d6f>
+...
+006 (8892499.000.000) 2021-03-11 10:57:21 Image size of job updated: 633268
+	619  -  MemoryUsage of job (MB)
+	633268  -  ResidentSetSize of job (KB)
+...
+006 (8892499.000.000) 2021-03-11 10:59:32 Image size of job updated: 2614164
+	2553  -  MemoryUsage of job (MB)
+	2614164  -  ResidentSetSize of job (KB)
+...
+040 (8892499.000.000) 2021-03-11 10:59:32 Started transferring output files
+...
+040 (8892499.000.000) 2021-03-11 10:59:32 Finished transferring output files
+...
+005 (8892499.000.000) 2021-03-11 10:59:32 Job terminated.
+	(1) Normal termination (return value 0)
+		Usr 0 00:01:58, Sys 0 00:00:15  -  Run Remote Usage
+		Usr 0 00:00:00, Sys 0 00:00:00  -  Run Local Usage
+		Usr 0 00:01:58, Sys 0 00:00:15  -  Total Remote Usage
+		Usr 0 00:00:00, Sys 0 00:00:00  -  Total Local Usage
+	80166  -  Run Bytes Sent By Job
+	2985930752  -  Run Bytes Received By Job
+	80166  -  Total Bytes Sent By Job
+	2985930752  -  Total Bytes Received By Job
+	Partitionable Resources :      Usage  Request Allocated Assigned
+	   Cpus                 :       0.94        1         1 
+	   Disk (KB)            : 5553938    26214400  27579017 
+	   Gpus (Average)       :                   1         1 "GPU-02c7070c"
+	   IoHeavy              :                             0 
+	   Memory (MB)          :    2553       30720     30720 
+
+	Job terminated of its own accord at 2021-03-11T16:59:32Z.
+...
