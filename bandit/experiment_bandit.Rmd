@@ -1,0 +1,129 @@
+---
+title: "0805"
+author: "Xinran Miao"
+date: "8/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("readr");library(dplyr);library(superheat);library(plyr);library(ggplot2)
+source('function_bandit.R')
+base_dir = './results/'
+ifelse(!dir.exists(base_dir), dir.create(base_dir), FALSE)
+```
+
+```{r}
+Source = read.csv('../ensemble/results/seed0_K3/seed0_K3Source.csv')
+Test = read.csv('../ensemble/results/seed0_K3/seed0_K3Test.csv')
+Validation = read.csv('../ensemble/results/seed0_K3/seed0_K3Validation.csv')
+```
+
+
+###  Subsets obtained by clustering.
+
+```{r}
+seed = 0
+num_rounds = 100
+num_cluster = length(unique(Source$Cluster))
+step = 20
+num_initial = 100; 
+set.seed(seed)
+idx_used = sample(1:nrow(Source),num_initial,replace = TRUE)
+source_in_use = Source[idx_used,]
+err_initial = pred_func2(rbind(source_in_use,Validation) %>% select(-Cluster),Test,mod = 'loglm')
+```
+
+```{r}
+idx = list()
+alpha = rep(1,num_cluster);beta = rep(1,num_cluster)
+Clusters = rep(0,num_rounds); errs = rep(0,num_rounds)
+for (t in 1:num_rounds) {
+  pi = c()
+  for (j in 1:num_cluster) {
+    pi[j] = rbeta(1,alpha[j],beta[j])
+  }
+  
+  set.seed(t+100)
+  Clusters[t] = sample(which(pi == min(pi)),1)
+  
+  choice = which(Source$Cluster == Clusters[t])
+  idx[[t]] = sample( choice,step,replace = TRUE)
+  idx_used = c(idx_used,unlist(idx[[t]]))
+  
+  source_in_use = rbind(source_in_use, Source[idx[[t]],])
+  
+  errs[t] = pred_func2(rbind(source_in_use,Validation)%>% select(-Cluster),Test,mod = 'loglm')
+  
+  dif = ifelse(t == 1, errs[t] - err_initial,errs[t] - errs[t-1])
+  if(dif>0){alpha[Clusters[t]] = alpha[Clusters[t]] + 1}else{
+      beta[Clusters[t]] = beta[Clusters[t]] + 1
+  }
+  
+}
+```
+```{r}
+p_err(errs, Clusters, title = 'Error over time',num_cluster)
+summary_stat(table(Clusters) / length(Clusters) )
+```
+
+
+
+
+### 3.2 Subsets obtained randomly.
+```{r}
+#table(Source$Cluster) # 3593 8151 3330 
+sim_size = 2000
+source_sample = Source
+id1 = sample(1:nrow(source_sample),3593); id2 = sample(c(1:nrow(source_sample))[-id1],8151)
+source_sample$Cluster = rep(3,nrow(source_sample));source_sample$Cluster[id1] = rep(1,3593);source_sample$Cluster[id2] = rep(2,8151)
+```
+
+
+```{r}
+num_rounds = 100
+num_cluster = length(unique(source_sample$Cluster))
+step = 20
+num_initial = 100; 
+set.seed(0)
+idx_used = sample(1:nrow(source_sample),num_initial,replace = TRUE)
+source_in_use = source_sample[idx_used,]
+err_initial = pred_func2(rbind(source_in_use,Validation)[,-c(10,11)],Test,mod = 'loglm')
+```
+
+```{r}
+idx = list()
+alpha = rep(1,num_cluster);beta = rep(1,num_cluster)
+Clusters = rep(0,num_rounds); errs = rep(0,num_rounds)
+for (t in 1:num_rounds) {
+  pi = c()
+  for (j in 1:num_cluster) {
+    pi[j] = rbeta(1,alpha[j],beta[j])
+  }
+  
+  set.seed(t-100)
+  Clusters[t] = sample(which(pi == min(pi)),1)
+  
+  choice = which(source_sample$Cluster == Clusters[t])
+  idx[[t]] = sample( choice,step,replace = TRUE)
+  idx_used = c(idx_used,unlist(idx[[t]]))
+  
+  source_in_use = rbind(source_in_use, source_sample[idx[[t]],])
+  
+  errs[t] = pred_func2(rbind(source_in_use,Validation)%>% select(-Cluster),Test,mod = 'loglm')
+  
+  dif = ifelse(t == 1, errs[t] - err_initial,errs[t] - errs[t-1])
+  if(dif>0){alpha[Clusters[t]] = alpha[Clusters[t]] + 1}else{
+      beta[Clusters[t]] = beta[Clusters[t]] + 1
+  }
+  
+}
+```
+```{r}
+p_err(errs, Clusters, title = 'Error over time',num_cluster)
+summary_stat(table(Clusters) / length(Clusters) )
+```
+
