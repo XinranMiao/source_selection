@@ -1,0 +1,6 @@
+This directory contains codes and output files of the simulation in section 4:
+
+1. `simulation_functions.R`: basic functions of the data generation and experiments.
+2. `run_bandit.R` and `run_ensemble.R`: implementation of bandit selection and ensemble methods. These files should be run inside `simulation_exeriment.R` where the variables are defined.
+3. `simulation_experiment.R`: implementation of data generation and subset selection. It requires dependencies on `simulation_functions`, `run_bandit.R` and `run_ensemble.R`.
+4. the directory of `./output/`: output files of the simulation experiment.
