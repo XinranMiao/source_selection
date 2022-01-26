@@ -1,15 +1,10 @@
 # Transfer_Learning_Remote_Sensing
 
-## Package installation
+## Simulation
+R codes for data generation and visualizations are in the folder `simulation`.
+## Experiment: California Housing Prices dataset
+R codes fo source data selection an visualizations are in the folder `experiment_ca`.
+## Experiment: Camelyon17-wilds dataset
+Dependencies: One can use the docker image `xinranmiao/transfer_hospital_v4:v0` created by `Dockerfile`.
+Python codes are in the folder  `experiment_camelyon`.
 
-The subdirectory `geotransfer` is a python package. To install it, you can
-navigate inside that directory and run `pip install .` from the terminal.
-
-The subdirectory `svcca` is an R package. To install it, you can start an R
-session within the subdirectory and run
-
-```
-library("devtools")
-document() # updates man pages
-install()
-```
