@@ -1,0 +1,27 @@
+name: example-environment
+channels:
+  - conda-forge
+  - pytorch
+  - anaconda
+dependencies:
+  - python
+  - numpy
+  - cudatoolkit=10.2
+  - pandas
+  - scikit-learn 
+  - matplotlib==3.3.2
+  - pytorch
+  - torchvision #==0.9.0 # this line added
+  - pip
+  - pip:
+    - torch
+    #- torchvision
+    - torch-scatter -f https://pytorch-geometric.com/whl/torch-1.10.0+cu102.html
+    - outdated==0.2.0
+    - opencv-python==3.4.14.53
+    - ogb==1.2.6
+    - pillow==7.2.0
+    - pytz==2020.4
+    - torch-geometric
+    - tqdm==4.53.0
+    - wilds==1.1.0
