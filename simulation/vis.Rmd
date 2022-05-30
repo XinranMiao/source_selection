@@ -1,5 +1,5 @@
 ---
-title: "Visualing simulation"
+title: "Visualizing simulation"
 params:
   data_path: "derived_data"
 output:
@@ -23,7 +23,7 @@ for (p in list.dirs(str_c(data_path), recursive = FALSE)) {
   betas <- read_csv(str_c(p, "/betas.csv"))
   x <- read_csv(str_c(p, "/tasks.csv"))
   ggplot(x %>% left_join(betas %>% select(task, cluster))) + 
-    geom_point(aes(x, y, col = as.factor(cluster))) + 
+    geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
     facet_wrap(~ task, scales = "free")
   ggsave(filename = str_c(p, "/Raw_data.png"), width = 10, height = 8)
 }
@@ -144,6 +144,11 @@ for(d in bandit_output_dirs) {
   
   ggsave(filename = str_c(d, "/parameter.png"), width = 10, height = 8)
 }
+```
+
+
+```{r}
+
 # Comparison with baselines
 for (sigma_set in c("high", "low", "medium")) {
   bind_rows(baselines) %>%
@@ -155,7 +160,7 @@ for (sigma_set in c("high", "low", "medium")) {
     geom_tile(aes(x = method, y = target_bandit, fill = log(loss)) )+
     scale_fill_distiller(direction = 1) +
     labs(x = "Method", y = "Target task")
-  ggsave(filename = str_c(data_path, "/", sigma_setting, "_bw/heat_baseline.png"), width = 8, height = 7)
+  ggsave(filename = str_c(data_path, "/", sigma_set, "_bw/heat_baseline.png"), width = 8, height = 7)
 }
 
 ```

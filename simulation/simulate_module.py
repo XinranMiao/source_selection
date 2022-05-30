@@ -9,10 +9,11 @@ import random
 import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-
+np.random.seed(1234)
 
 # Generate data
 def random_functions(n_tasks, k_clusters, sigma_between, sigma_within):
+    np.random.seed(1234)
     betas, zs = gaussian_mixture(n_tasks, k_clusters, sigma_between, sigma_within)
     functions = []
     for beta in betas:
@@ -165,19 +166,28 @@ def avg_loss(bandit_selects, losses, bandit_current):
 
 
 
-def baseline(input_data, pi, N, model, pred_ensemble, loss):
+def baseline(input_data, pi, N, alpha, beta, model, pred_ensemble, loss):
     final_loss = dict.fromkeys(["bandit", "all_source", "target_train", "random_source"], [])
-    # weighted all source, by bandit selection parameters
+    
+    # weighted all source, by bandit selection parameters ----
     X_end, y_end, tasks = subset_data(input_data["data_dict"], key_value = input_data["source_task"], key_name = "task", test_size = 0)
-    mod_train = model.fit(X_end, y_end, [pi[t][-1] for t in tasks])
+    
+    X_end = np.concatenate((X_end, input_data["X_target_val"]), axis = 0)
+    y_end = np.concatenate((y_end, input_data["y_target_val"]), axis = 0)
+    #mod_train = model.fit(X_end, y_end, [pi[t][-1] for t in tasks])
+    weights = [alpha[t][-1] / (alpha[t][-1] + beta[t][-1]) for t in tasks]
+    weights = weights + [sum(weights) / len(input_data["y_target_val"])] * len(input_data["y_target_val"])
+    mod_train = model.fit(X_end, y_end, weights)
     mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
                                  mod_train.predict, mod_train.predict, decay_rate = 1)
     final_loss["bandit"] = [loss(input_data["y_target_test"], mod_pred)]
-    # All source
+    
+    # All source ----
     mod_train = model.fit(X_end, y_end)
     mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
                                  mod_train.predict, mod_train.predict, decay_rate = 1)
     final_loss["all_source"] = [loss(input_data["y_target_test"], mod_pred)]
+    
     # target train
     mod_train = model.fit(input_data["X_target_train"], input_data["y_target_train"])
     mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
@@ -190,7 +200,8 @@ def baseline(input_data, pi, N, model, pred_ensemble, loss):
         X_random, y_random, _ = subset_data(input_data["data_dict"],
                                             key_value = random.choice(input_data["source_task"]),
                                             key_name = "task", test_size = 0)
-
+        X_random = np.concatenate((X_end, input_data["X_target_val"]), axis = 0)
+        y_random = np.concatenate((y_end, input_data["y_target_val"]), axis = 0)
 
         mod_train = model.fit(X_random, y_random)
         mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
@@ -200,7 +211,10 @@ def baseline(input_data, pi, N, model, pred_ensemble, loss):
     
     return(final_loss)
 
-def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss):
+
+
+
+def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss, conservative = False):
     bandit_selects = [None]
     # initialize hyperparameters
     alpha = dict.fromkeys(input_data["source_task"], [1])
@@ -238,8 +252,11 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss):
         losses += [l]
         
         
-        # update bandit parameters 
-        thres = avg_loss(bandit_selects, losses, bandit_current)
+        # update bandit parameters
+        if conservative:
+            thres = 100000
+        else:
+            thres = avg_loss(bandit_selects, losses, bandit_current)
         alpha, beta = update_hyper_para(alpha, beta, t, losses,
                                         bandit_current,
                                         thres = thres
@@ -249,8 +266,11 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss):
     #bandit_weights = prob
     #prob = list(pi.values())
     #prob = list(np.concatenate(prob).flat)
-    bl = baseline(input_data, prob, N = 10, model = model, pred_ensemble = pred_ensemble, loss = loss)
+    bl = baseline(input_data = input_data, pi=pi, alpha = alpha, beta = beta,
+                  N = 10, model = model, pred_ensemble = pred_ensemble, loss = loss)
     bandit_weights = [prob[bd][-1] for bd in list(prob.keys())]
     
     return losses, alpha, beta, bandit_selects, pi, bl, bandit_weights
+
+
 
