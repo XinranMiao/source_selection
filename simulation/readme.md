@@ -3,7 +3,7 @@
 - `bandit_simulation.ipynb`: code to run bandit selection on simulated data.
 - `derived_data/`: output of `bandit_simulation.ipynb`, under the setting where we eliminate irrelevant sources (`conservative = False` in function `bandit_source_train()`).
 - `conservative_data_path`: output of `bandit_simulation.ipynb`, under the setting similar to the manuscript (`conservative = True` in function `bandit_source_train()`).
-- `Vis.Rmd`: visualizing simulated data, with parameter `data_path` be one of `derived_data/` and `conservative_data_path`:
+- `vis.Rmd`: visualizing simulated data, with parameter `data_path` be one of `derived_data/` and `conservative_data_path`:
 
 The following was written prior to March 2022.
 
