@@ -257,44 +257,48 @@ def avg_loss(bandit_selects, losses, bandit_current):
         return s/j    
 
 
-def baseline(input_data, alpha, beta, model,  loss_fn, N):
+
+def baseline(input_data, pi, N, alpha, beta, model, pred_ensemble, loss):
     final_loss = dict.fromkeys(["bandit", "all_source", "target_train", "random_source"], [])
     
     # weighted all source, by bandit selection parameters ----
-    mod = model
-    X_end, y_end = draw_weighted_samples(input_data, alpha, beta)
-    X_end, y_end = mod.prepare_data(X_end, y_end)
-
-    mod.fit(X_end, y_end)
-    test_x, test_y = mod.prepare_data(input_data["X_target_test"], input_data["y_target_test"])
-    final_loss["bandit"] = [mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
+    X_end, y_end, tasks = subset_data(input_data["data_dict"], key_value = input_data["source_task"], key_name = "task", test_size = 0)
     
-    # All sources----
-    mod = model
-    X_sources, y_sources = mod.prepare_data(input_data["source_dict"]["x"], input_data["source_dict"]["y"])
-    mod.fit(X_sources, y_sources)
-    final_loss["all_source"] = [mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
+    X_end = np.concatenate((X_end, input_data["X_target_val"]), axis = 0)
+    y_end = np.concatenate((y_end, input_data["y_target_val"]), axis = 0)
+    #mod_train = model.fit(X_end, y_end, [pi[t][-1] for t in tasks])
+    weights = [alpha[t][-1] / (alpha[t][-1] + beta[t][-1]) for t in tasks]
+    weights = weights + [sum(weights) / len(input_data["y_target_val"])] * len(input_data["y_target_val"])
+    mod_train = model.fit(X_end, y_end, weights)
+    mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
+                                 mod_train.predict, mod_train.predict, decay_rate = 1)
+    final_loss["bandit"] = [loss(input_data["y_target_test"], mod_pred)]
     
-    # target train ---
-    mod = model
-    X_train, y_train = mod.prepare_data(input_data["X_target_train"], input_data["y_target_train"])
-    mod_train = model.fit(X_train, y_train)
-   
-    final_loss["target_train"] =[ mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
+    # All source ----
+    mod_train = model.fit(X_end, y_end)
+    mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
+                                 mod_train.predict, mod_train.predict, decay_rate = 1)
+    final_loss["all_source"] = [loss(input_data["y_target_test"], mod_pred)]
+    
+    # target train
+    mod_train = model.fit(input_data["X_target_train"], input_data["y_target_train"])
+    mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
+                                 mod_train.predict, mod_train.predict, decay_rate = 1)
+    final_loss["target_train"] =[ loss(input_data["y_target_test"], mod_pred)]
 
-    # One random source + target train ----
-    mod = model
+    # One random source
     for n in range(N):
         # one random source
         X_random, y_random, _ = subset_data(input_data["data_dict"],
                                             key_value = random.choice(input_data["source_task"]),
                                             key_name = "task", test_size = 0)
-        X_random = np.concatenate((X_random, input_data["X_target_train"]), axis = 0)
-        y_random = np.concatenate((y_random, input_data["y_target_train"]), axis = 0)
-        X_random, y_random = mod.prepare_data(X_random, y_random)
+        X_random = np.concatenate((X_end, input_data["X_target_val"]), axis = 0)
+        y_random = np.concatenate((y_end, input_data["y_target_val"]), axis = 0)
 
-        mod.fit(X_random, y_random)
-        final_loss["random_source"] =[ mod.evaluate(test_x, test_y, loss_fn = loss_fn)]
+        mod_train = model.fit(X_random, y_random)
+        mod_pred = pred_ensemble(input_data["X_target_test"], input_data["X_target_test"],
+                                     mod_train.predict, mod_train.predict, decay_rate = 1)
+        final_loss["random_source"] = final_loss["random_source"] + [loss(input_data["y_target_test"], mod_pred)]
     final_loss["random_source"] = [np.mean(final_loss["random_source"])]
     
     return(final_loss)
@@ -302,26 +306,20 @@ def baseline(input_data, alpha, beta, model,  loss_fn, N):
 
 
 
-
-def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn, conservative = False):
+def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss, conservative = False):
     bandit_selects = [None]
     # initialize hyperparameters
     alpha = dict.fromkeys(input_data["source_task"], [1])
     beta = dict.fromkeys(input_data["source_task"], [1])
     pi = dict.fromkeys(input_data["source_task"], [0])
     
-    mod = model
-    val_x, val_y = mod.prepare_data(input_data["X_target_val"], input_data["y_target_val"])
-
     # initialize model from target training data
-    X_current, y_current = mod.prepare_data(input_data["X_target_train"], input_data["y_target_train"])
-    mod.fit( X_current, y_current)
-    l = mod.evaluate(val_x, val_y)
-    losses = [l]
-    model_old = mod.model
+    mod_train = model.fit(input_data["X_target_train"], input_data["y_target_train"])
+    mod_pred = mod_train.predict(input_data["X_target_val"])
+    losses = [loss(mod_pred, input_data["y_target_val"])]
+    
     
     for t in range(n_it):
-        mod = model
         # select bandit
         bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
         bandit_selects.append(bandit_current)
@@ -331,34 +329,21 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
                                    key_name = "task", test_size = 0)
         batch_id = random.choices(list(range(0, len(y_current))), k = batch_size)
         X_current, y_current = X_current[batch_id, :], y_current[batch_id]
-
+        
         X_current = np.concatenate((X_current, input_data["X_target_val"]), axis = 0)
         y_current = np.concatenate((y_current, input_data["y_target_val"]), axis = 0)
-
-        #------------------------------------------------
-        X_current, y_current = mod.prepare_data(X_current, y_current)
-         #------------------------------------------------
-
-
-        # train model
-
-        #---------------------------------
-        #mod_train = model.fit(X_current, y_current)
-        mod.fit(X_current, y_current)
-        #-----------------------------------
-        mod.combine_with_old(model_old, decay_rate = decay_rate)
-        #mod_pred = model # should be a combination of model and mod_pred
-        #mod_pred = pred_ensemble(input_data["X_target_val"], input_data["X_target_val"],
-           #                  mod_old.predict, mod_train.predict, decay_rate)
-
-        # evaluate model
-        #l = loss(input_data["y_target_val"], mod_pred)
         
-        l = mod.evaluate(val_x, val_y, loss_fn = loss_fn)
+        # train model
+        mod_old = mod_train
+        mod_train = model.fit(X_current, y_current)
+        mod_pred = pred_ensemble(input_data["X_target_val"], input_data["X_target_val"],
+                             mod_old.predict, mod_train.predict, decay_rate)
+        
+        # evaluate model
+        l = loss(input_data["y_target_val"], mod_pred)
         losses += [l]
-        model_old = mod.model
-
-
+        
+        
         # update bandit parameters
         if conservative:
             thres = 100000
@@ -369,14 +354,18 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
                                         thres = thres
                                        )
     # baseline   
-    #_, prob = get_bandit(input_data, alpha, beta,t, pi)
-    bl = baseline(input_data = input_data, alpha = alpha, beta = beta,
-                  N = 10, model = model, loss_fn = loss_fn)
-    return losses, alpha, beta, bandit_selects, pi, bl
+    _, prob = get_bandit(input_data, alpha, beta,t, pi)
+    #bandit_weights = prob
+    #prob = list(pi.values())
+    #prob = list(np.concatenate(prob).flat)
+    bl = baseline(input_data = input_data, pi=pi, alpha = alpha, beta = beta,
+                  N = 10, model = model, pred_ensemble = pred_ensemble, loss = loss)
+    bandit_weights = [prob[bd][-1] for bd in list(prob.keys())]
+    
+    return losses, alpha, beta, bandit_selects, pi, bl, bandit_weights
 
 
-
-def save_files(output_dir, alpha, beta, losses, bandit_selects, pi, bl):
+def save_files(output_dir, alpha, beta, losses, bandit_selects, pi, bl, bandit_weights):
     output_dir.mkdir(exist_ok = True)
     pd.DataFrame.from_dict(alpha).to_csv(output_dir / "alpha.csv")
     pd.DataFrame.from_dict(beta).to_csv(output_dir / "beta.csv")
@@ -415,57 +404,5 @@ def draw_weighted_samples(input_data, alpha, beta):
     y_end = np.concatenate((y_end, input_data["y_target_val"]), axis = 0)
     
     return X_end, y_end
-
-
-
-class nn():
-    def __init__(self, n_inputs = 1, n_outputs = 1, H = 100):
-        self.model = torch.nn.Sequential(
-            torch.nn.Linear(n_inputs, H),
-            torch.nn.ReLU(),
-            torch.nn.Linear(H, H),
-            torch.nn.ReLU(),
-            torch.nn.Linear(H, H),
-            torch.nn.ReLU(),
-            torch.nn.Linear(H, H),
-            torch.nn.ReLU(),
-            torch.nn.Linear(H, n_outputs),
-        )
-    def prepare_data(self, x, y):
-        if type(x) != torch.Tensor:
-            if len(x.shape) > 1:
-                x = torch.tensor(x[:, 1:]).float()
-            else:
-                x = torch.tensor(x).float()
-        if type(y) != torch.Tensor:
-            y = torch.tensor(x).float()
-        return x, y
-    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-4):
-        model = self.model
-        optimizer = torch.optim.Adam(model.parameters(), lr = lr)
-        #losses = {"train": []}
-        y_hats = []
-        for epoch in range(n_epochs):
-            # get loss
-            optimizer.zero_grad()
-            y_hat = model(x_train[:, np.newaxis])
-            loss = loss_fn(y_train, y_hat)
-
-            # update weights
-            loss.backward()
-            optimizer.step()
-        return model
-    def evaluate(self, x_test, y_test, loss_fn = torch.nn.MSELoss()):
-        with torch.no_grad():
-            y_hat = self.model(x_test[:, np.newaxis])
-            l = loss_fn(y_test, y_hat)
-        return l
-    def combine_with_old(self, model_old, decay_rate = .5):
-        for i in range(len(model_old)):
-            if "weight" in dir(model_old[i]):
-                self.model[i].weight = torch.nn.Parameter(decay_rate * model_old[i].weight + (1 - decay_rate) * self.model[i].weight)
-                self.model[i].bias = torch.nn.Parameter(decay_rate * model_old[i].bias + (1 - decay_rate) * self.model[i].bias)
-
-
 
 

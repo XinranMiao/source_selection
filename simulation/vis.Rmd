@@ -90,11 +90,11 @@ for(d in bandit_output_dirs) {
     rename(task = bandit) %>%
     mutate(task = str_remove_all(task, "X") %>% as.numeric())
   
-  #baselines[[d]] <- read.csv(str_c(d, "/baseline.csv")) %>%
-    #select(- X) %>%
-   # mutate(target_bandit = target_bandit,
-       #    target_cluster = target_cluster,
-       #    sigma_setting = sigma_setting)
+  baselines[[d]] <- read.csv(str_c(d, "/baseline.csv")) %>%
+    select(- X) %>%
+    mutate(target_bandit = target_bandit,
+           target_cluster = target_cluster,
+           sigma_setting = sigma_setting)
     
     
   losses %>%
@@ -170,5 +170,12 @@ for (sigma_set in c("high", "low", "medium")) {
   ggsave(filename = str_c(data_path, "/", sigma_set, "_bw/heat_baseline.png"), width = 8, height = 7)
 }
 
+```
+```{r}
+baselines[[d]] <- read.csv(str_c(d, "/baseline.csv")) %>%
+    select(- X) %>%
+    mutate(target_bandit = target_bandit,
+           target_cluster = target_cluster,
+           sigma_setting = sigma_setting)
 ```
 
