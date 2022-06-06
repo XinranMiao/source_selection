@@ -58,27 +58,89 @@ def pos(x):
 
 # Data manipulation
 def get_key(my_dict, val):
+    """
+    Obtaining key of a dictionary by a value
+    """
     for k, v in my_dict.items():
          if val in v:
              return k
     return "There is no such key"
 
-def subset_data(data_dict, key_value, key_name = "task", test_size = 0.33):
+
+class pre():
+    def __init__(self, raw_data):
+        self.raw_data = raw_data
+    def normalize(self, raw, method = "min-max"):
+        if method == "min-max":
+            if type(raw) == list:
+                processed = [(v - min(raw)) / (max(raw) - min(raw)) for v in raw]
+            if type(raw) == np.ndarray:
+                processed = (raw - raw.min(axis = 0)) / (raw.max(axis = 0) - raw.min(axis = 0))
+                if len(processed.shape) > 1:
+                    processed[:, 0] = 1
+        return processed
+    def normalize_by_key(self, key_name, by_key, method = "min-max"):
+        processed = self.raw_data[key_name]
+        if type(processed) == list:
+            processed = np.array(processed)
+        by_key_values = list(set(self.raw_data[by_key]))
+        for by_v in by_key_values:
+            # indices for those with value == by_v on key by_key
+            idx = [i for (i, v) in enumerate(self.raw_data[key_name]) if self.raw_data[by_key][i] == by_v]
+            processed[idx] = self.normalize(raw = processed[idx] , method = method)
+        return processed
+    def pre_process(self, key_names = None, method = "min-max", by_key = "task"):
+        processed_data = self.raw_data
+        if type(self.raw_data) == dict:
+            for key_name in key_names:
+                if by_key is None:
+                    processed_data[key_name] = self.normalize(raw = processed_data[key_name], method = method)
+                else:
+                    processed_data[key_name] = self.normalize_by_key(key_name = key_name,
+                                                                     by_key = by_key,
+                                                                     method = method)
+        else:
+            processed_data = self.normalize(raw = self.raw_data, method = method)
+        return processed_data
+
+
+def subset_data(data_dict, key_name = "task", key_value = 0, test_size = 0.33):
+    """
+    Subsetting data by the value of a key.
+    
+    Parameters
+    ---
+    data_dict: dict
+        the dictionary one wants to subset
+    key_name: str
+        the key one wants to subset on
+    key_value: list / int / str
+        the value of the key desirable in the output subset
+    test_size: float
+        how to split the resulting subset; if set to zero, then the output won't be splitted
+
+    Returns
+    ---
+    
+    """
     if type(data_dict[key_name]) == list:
         values = data_dict[key_name]
     else:
         values = list(data_dict[key_name].values())
-        
+    
+    n_task = max(values) + 1    
     if type(key_value) != list:
-        idx_task = np.where(np.array(values) == key_value)
+        idx_task = [i for (i, v) in enumerate(values) if v == key_value]
     else:
-        idx_task = [v in key_value for v in np.array(values)]
-        idx_task = np.where(np.array(idx_task) == True)
-    idx_task = idx_task[0].tolist()
-    x = [data_dict['x'][i] for i in idx_task]
+        idx_task = [i for (i, v) in enumerate(values) if v in key_value]
+        
     tasks = [data_dict['task'][i] for i in idx_task]
-    X = np.array([np.ones(len(idx_task)), np.array(x)]).T
+    
+    
+    x = [data_dict['x'][i] for i in idx_task]
     y = np.array([data_dict['y'][i] for i in idx_task])
+    X = np.array([np.ones(len(idx_task)), np.array(x)]).T
+    
     if test_size == 0:
         return X, y, tasks
     else:
@@ -87,33 +149,63 @@ def subset_data(data_dict, key_value, key_name = "task", test_size = 0.33):
                                                         random_state = 123)
     return X_train, X_test, y_train, y_test
 
+
 def mse(y_true, y_predict):
     mse = np.mean((y_predict - y_true) ** 2)
     return mse
 
 
 # d dict, keys: original clusters; values: tasks (bandits)
-def prepare_input(data_dict, target_task, target_test_size, d ):
+def prepare_input(data_dict, target_task, target_test_size, preprocess = True):
+    """
+    Preparing input data for bandit selection
+    
+    Parameters
+    ---
+    data_dict: dict
+        all data, including source and target
+    target_task: int
+        data with data_dict["task"] equals to target_task will be in the target
+    target_test_size: float
+        within [0, 1) indicating the proportion of the validation + test set.
+    
+    Returns
+    ---
+    input_data: dict
+        keys including data_dict, source_dict,
+                        source_task, source_cluster,
+                        X_target_train, X_target_test, X_target_val, y_target_train, y_target_test, y_target_val
+    """
+    
+    n_tasks = max(data_dict["task"]) + 1
+
+
     input_data = {"data_dict": data_dict}
-    input_data["X_target_train"], input_data["X_target_test"], input_data["y_target_train"], input_data["y_target_test"] = subset_data(data_dict, key_value = target_task, key_name = "task")
+    input_data["X_target_train"], input_data["X_target_test"], input_data["y_target_train"], input_data["y_target_test"] = subset_data(data_dict, key_value = target_task, key_name = "task",
+                                                                                                                                      test_size = target_test_size)
     input_data["X_target_val"], input_data["X_target_test"], input_data["y_target_val"], input_data["y_target_test"] = train_test_split(input_data["X_target_test"], input_data["y_target_test"], 
-                                                        test_size = target_test_size,
+                                                        test_size = .5,
                                                         random_state = 123)
+        
+    input_data["source_task"] = [v for v in range(n_tasks) if v != target_task]
     
-    input_data["source_task"] = list(set(list(itertools.chain.from_iterable(d.values()))) - set([target_task]))
     
-    source_cluster = [get_key(d, i) for i in input_data["source_task"]]
-    input_data["source_cluster"] = list(set(source_cluster))
-    
-    idx_source = np.where(np.array(list(data_dict['task'].values())) != target_task)[0].tolist()
+    idx_source = [i for (i, v) in enumerate(data_dict['task']) if v != target_task]
     
     # source data
     input_data["source_dict"] = {}
     for key_name in data_dict.keys():
         input_data["source_dict"][key_name] = [data_dict[key_name][i] for i in idx_source]
-
+    
+    
+    if preprocess:
+        input_data["data_dict"] = pre(raw_data = input_data["data_dict"]).pre_process(key_names = ["y", "x", "f"], by_key = "task")
+        input_data["source_dict"] = pre(raw_data = input_data["source_dict"]).pre_process(key_names = ["y", "x"], by_key = "task")
+        input_data = pre(raw_data = input_data).pre_process(key_names = ["X_target_test", "X_target_val", "X_target_train",
+                                          "y_target_train", "y_target_val", "y_target_test"], by_key = None)
     
     return(input_data)
+
 
 # TS bandit selection
 def get_bandit(input_data, alpha, beta, t, pi, key_name = "source_task"):

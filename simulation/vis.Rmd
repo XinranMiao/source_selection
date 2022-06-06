@@ -1,7 +1,7 @@
 ---
 title: "Visualizing simulation"
 params:
-  data_path: "derived_data"
+  data_path: "nn/conservative_derived_data"
 output:
   html_document:
     df_print: paged
@@ -21,6 +21,13 @@ theme_set(theme_bw() +
 data_path <- params$data_path
 for (p in list.dirs(str_c(data_path), recursive = FALSE)) {
   betas <- read_csv(str_c(p, "/betas.csv"))
+  x <- read_csv(str_c(p, "/tasks_processed.csv"))
+  ggplot(x %>% left_join(betas %>% select(task, cluster))) + 
+    geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
+    facet_wrap(~ task, scales = "free")
+  ggsave(filename = str_c(p, "/processed_data.png"), width = 10, height = 8)
+  
+  
   x <- read_csv(str_c(p, "/tasks.csv"))
   ggplot(x %>% left_join(betas %>% select(task, cluster))) + 
     geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
@@ -83,11 +90,11 @@ for(d in bandit_output_dirs) {
     rename(task = bandit) %>%
     mutate(task = str_remove_all(task, "X") %>% as.numeric())
   
-  baselines[[d]] <- read.csv(str_c(d, "/baseline.csv")) %>%
-    select(- X) %>%
-    mutate(target_bandit = target_bandit,
-           target_cluster = target_cluster,
-           sigma_setting = sigma_setting)
+  #baselines[[d]] <- read.csv(str_c(d, "/baseline.csv")) %>%
+    #select(- X) %>%
+   # mutate(target_bandit = target_bandit,
+       #    target_cluster = target_cluster,
+       #    sigma_setting = sigma_setting)
     
     
   losses %>%
