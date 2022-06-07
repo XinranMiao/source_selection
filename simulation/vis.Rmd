@@ -1,7 +1,7 @@
 ---
 title: "Visualizing simulation"
 params:
-  data_path: "derived_data"
+  data_path: "derived_data/model_nn/derived_data"
 output:
   html_document:
     df_print: paged
@@ -59,11 +59,20 @@ extract_info <- function(d, betas) {
   model_setting <- str_sp[row_model, 2]
   sigma_setting <- str_sp[row_sigma, 1]
   target_test_size <- str_sp[row_target, 3]
+  
+  if("conservative" %in% unlist(str_sp)) {
+    conservative = TRUE
+  } else{
+    conservative = FALSE
+  }
+    
+  
   return(list(target_cluster = target_cluster,
               target_bandit = target_task,
               sigma_setting = sigma_setting,
               target_test_size  = target_test_size,
-              model_setting = model_setting))
+              model_setting = model_setting,
+              conservative = conservative))
 }
 ```
 
@@ -169,16 +178,40 @@ for(d in bandit_output_dirs) {
 
 ```{r}
 
+baselines <- list()
+for(d in bandit_output_dirs) {
+  if(!  str_detect(d, "target")) {
+    next
+  }
+  # extract information about target (which task, which cluster)
+  betas <- read_csv(str_c(d, "/../betas.csv"))
+  info <- extract_info(d, betas)
+  target_cluster <- info$target_cluster
+  target_bandit <- info$target_bandit
+  sigma_setting <- info$sigma_setting
+  target_test_size <- info$target_test_size 
+  baselines[[d]] <- read.csv(str_c(d, "/baseline.csv")) %>%
+    select(- X) %>%
+    mutate(target_bandit = target_bandit,
+           target_cluster = target_cluster,
+           sigma_setting = sigma_setting,
+           target_test_size  = target_test_size,
+           model_setting = info$model_setting,
+           conservative = info$conservative)
+}
+
 # Comparison with baselines
 for (sigma_set in c("high", "low", "medium")) {
   bind_rows(baselines) %>%
     mutate(target_train_size = 1 - as.numeric(target_test_size)) %>%
-    filter(sigma_setting == sigma_set) %>%
+    filter(sigma_setting == sigma_set,
+           #conservative == TRUE,
+           model_setting == "nn") %>%
     pivot_longer(cols = c("bandit", "all_source", "target_train", "random_source"),
                names_to = "method",
                values_to = "loss")  %>%
     ggplot() +
-    facet_wrap(target_train_size ~.) +
+    facet_wrap(target_train_size ~. ) +
     geom_tile(aes(x = method, y = target_bandit, fill = log(loss)) )+
     labs(x = "Method", y = "Target task") +
     scale_fill_viridis(begin = 1, end = 0)

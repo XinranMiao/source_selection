@@ -68,9 +68,15 @@ def get_key(my_dict, val):
 
 
 class pre():
+    """
+    Pre-processing input data
+    """
     def __init__(self, raw_data):
         self.raw_data = raw_data
     def normalize(self, raw, method = "min-max"):
+        """
+        Normalizing a list or columns of a numpy array.
+        """
         if method == "min-max":
             if type(raw) == list:
                 processed = [(v - min(raw)) / (max(raw) - min(raw)) for v in raw]
@@ -80,6 +86,9 @@ class pre():
                     processed[:, 0] = 1
         return processed
     def normalize_by_key(self, key_name, by_key, method = "min-max"):
+        """
+        Normalizing one value of a dictionary, within groups defined by another key
+        """
         processed = self.raw_data[key_name]
         if type(processed) == list:
             processed = np.array(processed)
@@ -90,6 +99,9 @@ class pre():
             processed[idx] = self.normalize(raw = processed[idx] , method = method)
         return processed
     def pre_process(self, key_names = None, method = "min-max", by_key = "task"):
+        """
+        Normalizing multiple values of a dictionary, (optional) within groups defined by another key.
+        """
         processed_data = self.raw_data
         if type(self.raw_data) == dict:
             for key_name in key_names:
@@ -220,10 +232,11 @@ def get_bandit(input_data, alpha, beta, t, pi, key_name = "source_task"):
     return(bandit, pi)
 
 def update_hyper_para(alpha, beta, t, losses, bandit_current, thres = -1):
+    """
+    Updating hyper parameters at a bandit iteration
+    """
     # for selected bandits
     if losses[-1] < losses[-2]:
-    #if losses[-1] < np.mean(losses):
-    #if losses[-1] < np.quantile(losses, .25):
         alpha[bandit_current] = alpha[bandit_current] + [alpha[bandit_current][-1] + 1]
         beta[bandit_current] = beta[bandit_current] + [beta[bandit_current][-1]]
     elif losses[-1] > thres:
@@ -238,11 +251,6 @@ def update_hyper_para(alpha, beta, t, losses, bandit_current, thres = -1):
            alpha[bandit] = alpha[bandit] + [alpha[bandit][-1]]
            beta[bandit] = beta[bandit] + [beta[bandit][-1]]
     return alpha, beta
-
-def pred_ensemble(X_new, y_new, predict_old, predict_new, decay_rate):
-    pre1 = predict_old(X_new)
-    pre2 = predict_new(X_new)
-    return (1 - decay_rate) * pre1 + decay_rate * pre2
 
 def avg_loss(bandit_selects, losses, bandit_current):
     j = 0
@@ -268,7 +276,10 @@ def save_files(output_dir, alpha, beta, losses, bandit_selects, pi, bl):
     pd.DataFrame.from_dict(pi).to_csv(output_dir / "pi.csv")
     pd.DataFrame.from_dict(bl).to_csv(output_dir / "baseline.csv")
 
-def draw_weighted_samples(input_data, alpha, beta):  
+def draw_weighted_samples(input_data, alpha, beta):
+    """
+    Drawing weighted samples from source
+    """  
     weight_dict = {t: alpha[t][-1] / (alpha[t][-1] + beta[t][-1]) for t in input_data["source_task"]}
     s = sum(weight_dict.values())
     weight_dict = {t: weight_dict[t] / s for t in weight_dict.keys()}
@@ -302,6 +313,9 @@ def draw_weighted_samples(input_data, alpha, beta):
 
 
 class lm():
+    """
+    Linear regression model
+    """
     def __init__(self):
         self.model = LinearRegression()
     def prepare_data(self, x, y):
@@ -321,6 +335,9 @@ class lm():
         return self.model
 
 class nn():
+    """
+    Neural network
+    """
     def __init__(self, n_inputs = 1, n_outputs = 1, H = 100):
         self.model = torch.nn.Sequential(
             torch.nn.Linear(n_inputs, H),
@@ -345,8 +362,6 @@ class nn():
     def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-4):
         model = self.model
         optimizer = torch.optim.Adam(model.parameters(), lr = lr)
-        #losses = {"train": []}
-        y_hats = []
         for epoch in range(n_epochs):
             # get loss
             optimizer.zero_grad()
@@ -371,6 +386,9 @@ class nn():
 
 
 def baseline(input_data, alpha, beta, model,  loss_fn, N):
+    """
+    Baseline models of out-of-domain generalization
+    """
     final_loss = dict.fromkeys(["bandit", "all_source", "target_train", "random_source"], [])
     
     # weighted all source, by bandit selection parameters ----
@@ -448,31 +466,16 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
 
         X_current = np.concatenate((X_current, input_data["X_target_val"]), axis = 0)
         y_current = np.concatenate((y_current, input_data["y_target_val"]), axis = 0)
-
-        #------------------------------------------------
         X_current, y_current = mod.prepare_data(X_current, y_current)
-         #------------------------------------------------
-
-
         # train model
-
-        #---------------------------------
         #mod_train = model.fit(X_current, y_current)
         mod.fit(X_current, y_current, loss_fn = loss_fn)
-        #-----------------------------------
+        # combine parameters with previous model
         mod.combine_with_old(model_old, decay_rate = decay_rate)
-        #mod_pred = model # should be a combination of model and mod_pred
-        #mod_pred = pred_ensemble(input_data["X_target_val"], input_data["X_target_val"],
-           #                  mod_old.predict, mod_train.predict, decay_rate)
-
         # evaluate model
-        #l = loss(input_data["y_target_val"], mod_pred)
-        
         l = mod.evaluate(val_x, val_y, loss_fn = loss_fn)
         losses += [l]
         model_old = mod.model
-
-
         # update bandit parameters
         if conservative:
             thres = 100000
