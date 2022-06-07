@@ -1,7 +1,7 @@
 ---
 title: "Visualizing simulation"
 params:
-  data_path: "derived_data/model_nn/derived_data"
+  data_path: "derived_data/model_nn/conservative_derived_data"
 output:
   html_document:
     df_print: paged
@@ -206,7 +206,8 @@ for (sigma_set in c("high", "low", "medium")) {
     mutate(target_train_size = 1 - as.numeric(target_test_size)) %>%
     filter(sigma_setting == sigma_set,
            #conservative == TRUE,
-           model_setting == "nn") %>%
+           #model_setting == "nn"
+           ) %>%
     pivot_longer(cols = c("bandit", "all_source", "target_train", "random_source"),
                names_to = "method",
                values_to = "loss")  %>%

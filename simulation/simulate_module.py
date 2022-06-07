@@ -357,7 +357,7 @@ class nn():
             else:
                 x = torch.tensor(x).float()
         if type(y) != torch.Tensor:
-            y = torch.tensor(x).float()
+            y = torch.tensor(y).float()
         return x, y
     def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-4):
         model = self.model
