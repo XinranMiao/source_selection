@@ -318,11 +318,13 @@ class lm():
     """
     def __init__(self):
         self.model = LinearRegression()
+    def initialize(self):
+        self.model = LinearRegression()
+        return self
     def prepare_data(self, x, y):
         if len(x.shape) <= 1:
             x = np.array([np.ones(x.shape), np.array(x)]).T
         return x, y
-    
     def fit(self, x_train, y_train, loss_fn = None):
         self.model.fit(x_train, y_train)
         return self.model
@@ -333,12 +335,23 @@ class lm():
     def combine_with_old(self, model_old, decay_rate = .5):
         self.model.coef_ = decay_rate * model_old.coef_ + (1 - decay_rate) * self.model.coef_
         return self.model
+    def pred(self, x_new):
+        y_hat = self.model.predict(x_new)
+        return y_hat
+    def save(self, path = ".", x_new = None, y_new = None, para = True):
+        path = Path(path)
+        path.mkdir(parents = True, exist_ok = True)
+        if para is True:
+            pd.DataFrame.from_dict({"coef": self.model.coef_}).to_csv(path / Path("coef.csv"))
+        if not x_new is None:
+            pd.DataFrame.from_dict({"x": x_new[:, 1], "y": y_new, "y_hat": self.pred(x_new)}).to_csv(path / Path("fitted.csv"))
+        return para
 
 class nn():
     """
     Neural network
     """
-    def __init__(self, n_inputs = 1, n_outputs = 1, H = 100):
+    def __init__(self, n_inputs = 1, n_outputs = 1, H = 200):
         self.model = torch.nn.Sequential(
             torch.nn.Linear(n_inputs, H),
             torch.nn.ReLU(),
@@ -350,6 +363,19 @@ class nn():
             torch.nn.ReLU(),
             torch.nn.Linear(H, n_outputs),
         )
+    def initialize(self, n_inputs = 1, n_outputs = 1, H = 200):
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(n_inputs, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, n_outputs),
+        )
+        return self
     def prepare_data(self, x, y):
         if type(x) != torch.Tensor:
             if len(x.shape) > 1:
@@ -361,29 +387,43 @@ class nn():
         return x, y
     def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-4):
         model = self.model
-        optimizer = torch.optim.Adam(model.parameters(), lr = lr)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr = lr)
         for epoch in range(n_epochs):
             # get loss
             optimizer.zero_grad()
-            y_hat = model(x_train[:, np.newaxis])
+            y_hat = self.model(x_train[:, np.newaxis])
             loss = loss_fn(y_train, y_hat)
 
             # update weights
             loss.backward()
             optimizer.step()
+        return self
+            
         return model
     def evaluate(self, x_test, y_test, loss_fn = torch.nn.MSELoss()):
         with torch.no_grad():
             y_hat = self.model(x_test[:, np.newaxis])
             l = loss_fn(y_test, y_hat)
         return l
+    def pred(self, x_new):
+        with torch.no_grad():
+            y_hat = self.model(x_new)
+        return y_hat
     def combine_with_old(self, model_old, decay_rate = .5):
         for i in range(len(model_old)):
             if "weight" in dir(model_old[i]):
                 self.model[i].weight = torch.nn.Parameter(decay_rate * model_old[i].weight + (1 - decay_rate) * self.model[i].weight)
                 self.model[i].bias = torch.nn.Parameter(decay_rate * model_old[i].bias + (1 - decay_rate) * self.model[i].bias)
-
-
+    def save(self, path = ".", x_new = None, y_new = None, para = True):
+        x_new, y_new = self.prepare_data(x_new, y_new)
+        path = Path(path)
+        path.mkdir(parents = True, exist_ok = True)
+        y_hat = self.pred(x_new)
+        if not x_new is None:
+            pd.DataFrame.from_dict({"x": [item[0] for item in x_new.tolist()], 
+                        "y": y_new,
+                        "y_hat": [item[0] for item in y_hat.tolist()]
+                       }).to_csv(path / Path("fitted.csv"))
 
 def baseline(input_data, alpha, beta, model,  loss_fn, N):
     """
@@ -454,9 +494,11 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
     
     for t in range(n_it):
         mod = model
+
         # select bandit
         bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
         bandit_selects.append(bandit_current)
+
         # set training data at this iteration
         X_current, y_current, _ = subset_data(input_data["source_dict"], 
                                    key_value = bandit_current,
@@ -467,15 +509,18 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
         X_current = np.concatenate((X_current, input_data["X_target_val"]), axis = 0)
         y_current = np.concatenate((y_current, input_data["y_target_val"]), axis = 0)
         X_current, y_current = mod.prepare_data(X_current, y_current)
+
         # train model
-        #mod_train = model.fit(X_current, y_current)
         mod.fit(X_current, y_current, loss_fn = loss_fn)
+
         # combine parameters with previous model
         mod.combine_with_old(model_old, decay_rate = decay_rate)
+
         # evaluate model
         l = mod.evaluate(val_x, val_y, loss_fn = loss_fn)
         losses += [l]
         model_old = mod.model
+        
         # update bandit parameters
         if conservative:
             thres = 100000

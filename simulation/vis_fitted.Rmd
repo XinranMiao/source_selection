@@ -1,0 +1,119 @@
+---
+title: "Visualizing simulation on linear regression bandit"
+params:
+  data_path: "derived_data/model_nn/conservative_derived_data"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+library(tidyr)
+library(tidyverse)
+theme_set(theme_minimal())
+base_dir <- "test/model_lm/derived_data/high_bw/"
+```
+
+
+Original data
+```{r}
+betas <- read_csv(str_c(base_dir, "/betas.csv"))
+x <- read_csv(str_c(base_dir, "/tasks_processed.csv"))
+ggplot(x %>% left_join(betas %>% dplyr::select(task, cluster))) + 
+    geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
+    facet_wrap(~ task, scales = "free")
+ggsave(filename = str_c(base_dir, "/processed_data.png"), width = 10, height = 8)
+  
+  
+x <- read_csv(str_c(base_dir, "/tasks.csv"))
+ggplot(x %>% left_join(betas %>% dplyr::select(task, cluster))) + 
+    geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
+    facet_wrap(~ task, scales = "free")
+ggsave(filename = str_c(base_dir, "/Raw_data.png"), width = 10, height = 8)
+```
+
+
+
+```{r, fig.width=12, fig.height=3.5}
+fitted_list <- list()
+for (t in 1:100) {
+  fitted_list[[t]] <- read.csv(str_c(base_dir, t - 1, "/fitted.csv")) %>%
+    dplyr::select( - X) %>%
+    mutate(t = t) %>%
+    pivot_longer(cols = c(y, y_hat), values_to = "Y")
+  
+}
+
+fitted_list %>%
+  bind_rows() %>%
+  filter(t %% 20 == 0) %>%
+  mutate(t = as.factor(t)) %>%
+  ggplot(aes(x = x, y = Y, color = name ), size = 2) +
+  geom_point() +
+  facet_wrap( as.factor(t) ~ ., nrow = 1) +
+  theme(legend.position = "bottom")
+```
+
+
+
+```{r, fig.width=12, fig.height=3}
+train_data <- list()
+coef_list <- list()
+for (t in 1:100) {
+  # training data
+  train_data[[t]] <- read.csv(str_c(base_dir, "current", t - 1, "/fitted.csv")) %>%
+    dplyr::select( - X) %>%
+    mutate(t = t) %>%
+    pivot_longer(cols = c(y, y_hat), values_to = "Y")
+  
+  # coefficients
+  train_only_mod <- lm(Y ~ x, train_data[[t]] %>% filter(name == "y"))
+  bandit_coef <- read.csv(str_c(base_dir, "current", t - 1, "/coef.csv")) %>%
+    dplyr::select( - X) %>%
+   unlist
+  coef_list[[t]] <- data.frame(intercept = bandit_coef[1], slope = bandit_coef[2], type = "bandit_selection") %>%
+   rbind(data.frame(intercept = train_only_mod$coefficients[1],
+                    slope = train_only_mod$coefficients[2],
+                    type = "train data only")) %>%
+   mutate(t = t)
+}
+```
+
+```{r, fig.width=12, fig.height=3.5}
+
+train_data %>%
+  bind_rows() %>%
+  filter(t %% 20 == 0,
+         name == "y") %>%
+  mutate(t = as.factor(t)) %>%
+  ggplot(aes(x = x, y = Y )) +
+  geom_point(color = "blue", size = 2) +
+  facet_wrap( as.factor(t) ~ ., nrow = 1)
+```
+
+```{r, fig.width=12, fig.height=3}
+coef_list %>%
+  bind_rows() %>%
+  filter(t %% 20 == 0) %>%
+  mutate(t = as.factor(t)) %>%
+  ggplot() +
+  geom_abline(aes(slope = slope, intercept = intercept, color = type), size = 2) +
+  facet_wrap(as.factor(t) ~ ., nrow = 1) +
+  theme(legend.position = "bottom")
+```
+
+```{r,fig.width=6,fig.height=6}
+loss <- read.csv(str_c(base_dir, "losses.csv")) %>%
+    rename(iteration = X) %>%
+          rename(value = losses,
+                 task = bandit_selects) %>%
+          mutate(parameter = "loss")
+loss %>%
+    mutate(task = as.factor(task)) %>%
+    drop_na() %>%
+    ggplot() +
+    geom_point(aes(x = iteration, y = value, color = task), size = 2) +
+    geom_path(aes(x = iteration, y = value)) +
+    #ggtitle(str_c("target cluster is ", target_cluster, ", task is ",target_bandit)) +
+    geom_hline(yintercept = loss[1, "value"], color = "red")
+```
+
