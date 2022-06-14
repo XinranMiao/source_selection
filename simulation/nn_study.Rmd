@@ -1,0 +1,221 @@
+---
+title: "nn_study"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(reticulate)
+library(tidyverse)
+#conda_create("source_selection")
+use_condaenv("source_selection")
+#conda_install("source_selection", c("pandas", "numpy", "scikit-learn"))
+#conda_install("source_selection", "pytorch", channel = "pytorch")
+```
+
+
+
+```{python}
+import pandas as pd
+from pathlib import Path
+import numpy as np
+np.random.seed(1234)
+
+from simulate_module import *
+```
+
+
+```{python}
+sigma_setting = {"high_bw": [10, .2], "medium_bw": [1, .2], "low_bw": [.5, .2]}
+
+args = {
+    "n_tasks": 15,
+    "conservative": True,
+    "target_test_size": 0.8,
+    "model_type": "nn",
+    "base_output_dir": "derived_data"
+}
+```
+
+
+```{python}
+s = "medium_bw"
+i = 0
+
+f, betas, zs = random_functions(args["n_tasks"], 6,
+                                sigma_between = sigma_setting[s][0],
+                                sigma_within = sigma_setting[s][-1])
+fi = f[i]
+
+x = np.random.uniform(0, 1, 100)
+
+result = []
+result.append({
+    "task": i,
+    "x": x,
+    "f": fi(x),
+    "y": fi(x) + np.random.normal(0, .1, len(x))
+})
+```
+
+
+```{r}
+as.data.frame(py$result) %>%
+  ggplot() +
+  geom_line(aes(x, f)) +
+  geom_point(aes(x, y))
+```
+```{python}
+data_df = pd.concat([pd.DataFrame(r) for r in result])
+data_df = data_df.reset_index()
+data_dict = data_df.to_dict(orient = "list")
+
+target_task = 0
+input_data = prepare_input(data_dict,
+                           target_task = target_task,
+                           target_test_size = args["target_test_size"],
+                           preprocess = True)
+```
+
+
+```{python}
+class nn2():
+    """
+    Neural network
+    """
+    def __init__(self, n_inputs = 1, n_outputs = 1, H = 200):
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(n_inputs, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, n_outputs),
+        )
+    def initialize(self, n_inputs = 1, n_outputs = 1, H = 200):
+        self.model = torch.nn.Sequential(
+            torch.nn.Linear(n_inputs, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, n_outputs),
+        )
+        return self
+    def prepare_data(self, x, y):
+        if type(x) != torch.Tensor:
+            if len(x.shape) > 1:
+                x = torch.tensor(x[:, 1:]).float()
+            else:
+                x = torch.tensor(x).float()
+        if type(y) != torch.Tensor:
+            y = torch.tensor(y).float()
+        return x, y
+    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-3):
+        model = self.model
+        optimizer = torch.optim.Adam(self.model.parameters(), lr = lr)
+        for epoch in range(n_epochs):
+            # get loss
+            optimizer.zero_grad()
+            y_hat = self.model(x_train) # changed 
+            loss = loss_fn(y_train, y_hat)
+            
+            # update weights
+            loss.backward()
+            optimizer.step()
+        return self
+            
+        return model
+    def evaluate(self, x_test, y_test, loss_fn = torch.nn.MSELoss()):
+        with torch.no_grad():
+            y_hat = self.model(x_test[:, np.newaxis])
+            l = loss_fn(y_test, y_hat)
+        return l
+    def pred(self, x_new):
+        with torch.no_grad():
+            y_hat = self.model(x_new)
+        return y_hat
+    def combine_with_old(self, model_old, decay_rate = .5):
+        for i in range(len(model_old)):
+            if "weight" in dir(model_old[i]):
+                self.model[i].weight = torch.nn.Parameter(decay_rate * model_old[i].weight + (1 - decay_rate) * self.model[i].weight)
+                self.model[i].bias = torch.nn.Parameter(decay_rate * model_old[i].bias + (1 - decay_rate) * self.model[i].bias)
+```
+
+
+
+```{python}
+mod = nn2()
+loss_fn =  torch.nn.MSELoss()
+X_current, y_current = mod.prepare_data(input_data["X_target_train"], input_data["y_target_train"])
+mod.fit(X_current, y_current[:, np.newaxis], loss_fn) # changed
+y_hat = mod.pred(X_current).numpy()
+X_current_ = X_current.numpy()
+y_current_ = y_current.numpy()
+```
+
+
+```{r}
+data.frame(x = py$X_current_, y = py$y_current_, y_hat = py$y_hat) %>%
+  ggplot() +
+  geom_point(aes(x, y)) +
+  geom_point(aes(x, y_hat), col = "red")
+```
+
+```{python}
+model_class = nn2()
+loss_fn = torch.nn.MSELoss()
+
+for s in sigma_setting:
+    np.random.seed(1234)
+    f, betas, zs = random_functions(args["n_tasks"], 6,
+                                    sigma_between = sigma_setting[s][0],
+                                    sigma_within = sigma_setting[s][-1])
+    result = []
+    for i, fi in enumerate(f):
+        x = np.random.uniform(0, 1, 100)
+        result.append({
+            "task": i,
+            "x": x,
+            "f": fi(x),
+            "y": fi(x) + np.random.normal(0, .1, len(x))
+        })
+    # save data
+    data_df = pd.concat([pd.DataFrame(r) for r in result])
+    data_df = data_df.reset_index()
+    data_dict = data_df.to_dict(orient = "list")
+    # bandit selection ------------------------------------------------
+    target_task = 0
+    
+    # prepare input
+    input_data = prepare_input(data_dict,
+                               target_task = target_task,
+                               target_test_size = args["target_test_size"],
+                              preprocess = True)
+    # bandit selection
+    losses, alpha, beta, bandit_selects, pi = bandit_source_train(input_data = input_data,
+                                                                      model = model_class,
+                                                                      batch_size = 8,
+                                                                      decay_rate = .5,
+                                                                      n_it = 100,
+                                                                      loss_fn =  loss_fn,
+                                                                      conservative = args["conservative"])
+                                                                      
+x_ = np.linspace(-1, 1, 20)[:, np.newaxis]
+y_hat = mod.pred(torch.from_numpy(x_).float())
+y_hat = y_hat.numpy()
+```
+
+
+
+```{r}
+plot(py$y_hat)
+```
+
+
