@@ -69,6 +69,7 @@ as.data.frame(py$result) %>%
   geom_line(aes(x, f)) +
   geom_point(aes(x, y))
 ```
+
 ```{python}
 data_df = pd.concat([pd.DataFrame(r) for r in result])
 data_df = data_df.reset_index()
@@ -117,7 +118,7 @@ class nn2():
         if type(y) != torch.Tensor:
             y = torch.tensor(y).float()
         return x, y
-    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-3):
+    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 5e-4):
         model = self.model
         optimizer = torch.optim.Adam(self.model.parameters(), lr = lr)
         for epoch in range(n_epochs):
@@ -203,19 +204,23 @@ for s in sigma_setting:
                                                                       model = model_class,
                                                                       batch_size = 8,
                                                                       decay_rate = .5,
-                                                                      n_it = 100,
+                                                                      n_it = 1000,
                                                                       loss_fn =  loss_fn,
                                                                       conservative = args["conservative"])
                                                                       
 x_ = np.linspace(-1, 1, 20)[:, np.newaxis]
 y_hat = mod.pred(torch.from_numpy(x_).float())
 y_hat = y_hat.numpy()
+y_ = f[target_task](x_[:, 0])
+y_ = (y_ - y_.mean()) / y_.std()
 ```
-
-
 
 ```{r}
-plot(py$y_hat)
+data.frame(y_hat = py$y_hat, x = py$x_, y = py$y_) %>%
+  ggplot() +
+  geom_point(aes(x, y_hat)) +
+  geom_point(aes(x, y), col = "red")
 ```
+
 
 

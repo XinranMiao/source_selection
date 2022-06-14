@@ -79,9 +79,10 @@ class pre():
         """
         if method == "min-max":
             if type(raw) == list:
-                processed = [(v - min(raw)) / (max(raw) - min(raw)) for v in raw]
+                #processed = [(v - min(raw)) / (max(raw) - min(raw)) for v in raw]
+                processed = [(v - raw.mean()) / raw.std() for v in raw]
             if type(raw) == np.ndarray:
-                processed = (raw - raw.min(axis = 0)) / (raw.max(axis = 0) - raw.min(axis = 0))
+                processed = (raw - raw.mean(axis=0)) / raw.std(axis=0)
                 if len(processed.shape) > 1:
                     processed[:, 0] = 1
         return processed
@@ -531,8 +532,8 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
                                         thres = thres
                                        )
     # baseline   
-    bl = baseline(input_data = input_data, alpha = alpha, beta = beta,
-                  N = 10, model = model, loss_fn = loss_fn)
-    return losses, alpha, beta, bandit_selects, pi, bl
+    #bl = baseline(input_data = input_data, alpha = alpha, beta = beta,
+    #              N = 10, model = model, loss_fn = loss_fn)
+    return losses, alpha, beta, bandit_selects, pi#, bl
 
 
