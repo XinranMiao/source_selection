@@ -1,0 +1,130 @@
+---
+title: "Visualizing simulation on badit selection"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+library(tidyr)
+library(tidyverse)
+```
+
+
+```{r}
+metadata <- read.csv("metadata.csv")
+baselines <- list()
+for (i in 1:nrow(metadata)) {
+  # set directories
+  p <- metadata[i, "path"]
+  out_p <- str_c(p, "/vis/")
+  dir.create(out_p, recursive = TRUE)
+  
+  # plot raw / pre-processed data
+  betas <- read_csv(str_c(p, "/betas.csv"))
+  x <- read_csv(str_c(p, "/tasks_processed.csv"))
+  ggplot(x %>% left_join(betas %>% select(task, cluster))) + 
+    geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
+    facet_wrap(~ task, scales = "free")
+  ggsave(filename = str_c(out_p, "/processed_data.png"), width = 10, height = 8)
+  
+  
+  x <- read_csv(str_c(p, "/tasks.csv"))
+  ggplot(x %>% left_join(betas %>% select(task, cluster))) + 
+    geom_point(aes(x, y, col = as.factor(cluster)), size = 2) + 
+    facet_wrap(~ task, scales = "free")
+  ggsave(filename = str_c(out_p, "Raw_data.png"), width = 10, height = 8)
+  
+  # target cluster
+  target_cluster <- betas %>%
+    filter(task == metadata[i, "target_task"]) %>%
+    dplyr::select(cluster) %>% unique %>% unlist
+  target_bandit <- metadata[i, "target_task"]
+  sigma_setting <- metadata[i, "s"]
+  target_test_size <- metadata[i, "target_test_size"]
+  
+  
+  losses <- read.csv(str_c(p, "/losses.csv")) %>%
+    rename(iteration = X) %>%
+          rename(value = losses,
+                 task = bandit_selects) %>%
+          mutate(parameter = "loss")
+  
+  
+  # read parameters
+  alpha <- read.csv(str_c(p, "/alpha.csv")) %>%
+    rename(iteration = X) %>% 
+    pivot_longer(!"iteration", names_to = "bandit", values_to = "value") %>%
+    mutate(parameter = "alpha")
+  beta <- read.csv(str_c(p, "/beta.csv")) %>%
+    rename(iteration = X) %>% 
+    pivot_longer(!"iteration", names_to = "bandit", values_to = "value") %>%
+    mutate(parameter = "beta")
+  pi <- read.csv(str_c(p, "/pi.csv")) %>%
+    rename(iteration = X) %>% 
+    pivot_longer(!"iteration", names_to = "bandit", values_to = "value") %>%
+    mutate(parameter = "pi") %>%
+    rename(task = bandit) %>%
+    mutate(task = str_remove_all(task, "X") %>% as.numeric())
+  
+  baselines[[p]] <- read.csv(str_c(p, "/baseline.csv")) %>%
+    dplyr::select(- X) %>%
+    mutate(target_bandit = target_bandit,
+           target_cluster = target_cluster,
+           sigma_setting = sigma_setting,
+           target_test_size  = target_test_size )
+    
+    
+  losses %>%
+    mutate(task = as.factor(task)) %>%
+    drop_na() %>%
+    ggplot() +
+    geom_point(aes(x = iteration, y = value, color = task), size = 2) +
+    geom_path(aes(x = iteration, y = value)) +
+    ggtitle(str_c("target cluster is ", target_cluster, ", task is ",target_bandit)) +
+    geom_hline(yintercept = losses[1, "value"], color = "red")
+  ggsave(filename = str_c(out_p, "losses.png"), width = 7, height = 7)
+  
+  pi  %>%
+    mutate(task = as.factor(task)) %>%
+    ggplot() +
+    geom_point(aes(x = iteration, y = value, color = task)) +
+    geom_path(aes(x = iteration, y = value, color = task)) +
+    ggtitle(str_c("target bandit is ", target_bandit))
+  ggsave(filename = str_c(out_p, "pi.png"), width = 7, height = 7)
+  
+  alpha %>% 
+    ggplot() +
+    geom_point(aes(x = iteration, y = value, color = bandit)) +
+    geom_path(aes(x = iteration, y = value, color = bandit)) +
+    ggtitle(str_c("target bandit is ", target_bandit)) +
+    labs(y = "alpha")
+  ggsave(filename = str_c(out_p, "alpha.png"), width = 7, height = 7)
+  
+  beta %>% 
+    ggplot() +
+    geom_point(aes(x = iteration, y = value, color = bandit)) +
+    geom_path(aes(x = iteration, y = value, color = bandit)) +
+    ggtitle(str_c("target bandit is ", target_bandit)) +
+    labs(y = "beta")
+  ggsave(filename = str_c(out_p, "beta.png"), width = 7, height = 7)
+  
+  # visualize parameters and losses
+  rbind(alpha, beta) %>%
+    mutate(task = str_remove_all(bandit, "X") %>% as.numeric()) %>%
+    select(-bandit) %>%
+    rbind(losses) %>%
+    rbind(pi) %>%
+    full_join(betas[, c("task", "cluster")], by = "task") %>%
+    mutate(task = as.factor(task),
+         cluster = as.factor(cluster)) %>%
+    drop_na() %>%
+    ggplot() +
+    geom_point(aes(x = iteration, y =value, color = task), size = 2) +
+    facet_grid( parameter ~ cluster, scales = "free") +
+    ggtitle(str_c("target cluster is ", target_cluster, "; target task is ", target_bandit))
+  
+  ggsave(filename = str_c(out_p, "parameter.png"), width = 10, height = 8)
+  
+}
+```
+
