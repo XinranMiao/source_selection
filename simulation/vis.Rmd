@@ -120,9 +120,6 @@ for(d in bandit_output_dirs) {
     
     
   losses %>%
-    group_by(task) %>%
-    summarise(loss = mean(value))
-  losses %>%
     mutate(task = as.factor(task)) %>%
     drop_na() %>%
     ggplot() +

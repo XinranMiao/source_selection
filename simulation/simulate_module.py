@@ -73,7 +73,7 @@ class pre():
     """
     def __init__(self, raw_data):
         self.raw_data = raw_data
-    def normalize(self, raw, method = "min-max"):
+    def normalize(self, raw, method = "scale"):
         """
         Normalizing a list or columns of a numpy array.
         """
@@ -84,6 +84,13 @@ class pre():
                 processed = (raw - raw.min(axis = 0)) / (raw.max(axis = 0) - raw.min(axis = 0))
                 if len(processed.shape) > 1:
                     processed[:, 0] = 1
+        if method == "scale":
+            if type(raw) == list:
+                processed = [(v - raw.mean()) / raw.std() for v in raw]
+            if type(raw) == np.ndarray:
+                processed = (raw - raw.mean(axis=0)) / raw.std(axis=0)
+                #if len(processed.shape) > 1:
+                    #processed[:, 0] = 1
         return processed
     def normalize_by_key(self, key_name, by_key, method = "min-max"):
         """
@@ -98,7 +105,7 @@ class pre():
             idx = [i for (i, v) in enumerate(self.raw_data[key_name]) if self.raw_data[by_key][i] == by_v]
             processed[idx] = self.normalize(raw = processed[idx] , method = method)
         return processed
-    def pre_process(self, key_names = None, method = "min-max", by_key = "task"):
+    def pre_process(self, key_names = None, method = "scale", by_key = "task"):
         """
         Normalizing multiple values of a dictionary, (optional) within groups defined by another key.
         """
@@ -114,6 +121,7 @@ class pre():
         else:
             processed_data = self.normalize(raw = self.raw_data, method = method)
         return processed_data
+
 
 
 def subset_data(data_dict, key_name = "task", key_value = 0, test_size = 0.33):
@@ -151,8 +159,8 @@ def subset_data(data_dict, key_name = "task", key_value = 0, test_size = 0.33):
     
     x = [data_dict['x'][i] for i in idx_task]
     y = np.array([data_dict['y'][i] for i in idx_task])
-    X = np.array([np.ones(len(idx_task)), np.array(x)]).T
-    
+    #X = np.array([np.ones(len(idx_task)), np.array(x)]).T
+    X = np.array([np.array(x)]).T
     if test_size == 0:
         return X, y, tasks
     else:
@@ -217,6 +225,7 @@ def prepare_input(data_dict, target_task, target_test_size, preprocess = True):
                                           "y_target_train", "y_target_val", "y_target_test"], by_key = None)
     
     return(input_data)
+
 
 
 # TS bandit selection
@@ -359,8 +368,6 @@ class nn():
             torch.nn.ReLU(),
             torch.nn.Linear(H, H),
             torch.nn.ReLU(),
-            torch.nn.Linear(H, H),
-            torch.nn.ReLU(),
             torch.nn.Linear(H, n_outputs),
         )
     def initialize(self, n_inputs = 1, n_outputs = 1, H = 200):
@@ -371,29 +378,29 @@ class nn():
             torch.nn.ReLU(),
             torch.nn.Linear(H, H),
             torch.nn.ReLU(),
-            torch.nn.Linear(H, H),
-            torch.nn.ReLU(),
             torch.nn.Linear(H, n_outputs),
         )
         return self
     def prepare_data(self, x, y):
         if type(x) != torch.Tensor:
-            if len(x.shape) > 1:
-                x = torch.tensor(x[:, 1:]).float()
-            else:
-                x = torch.tensor(x).float()
+            x = torch.tensor(x).float()
+            #if len(x.shape) > 1:
+             #   x = torch.tensor(x[:, 1:]).float()
+            #else:
+            #    x = torch.tensor(x).float()
         if type(y) != torch.Tensor:
             y = torch.tensor(y).float()
+            y = y[:, np.newaxis]
         return x, y
-    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 1e-4):
+    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 5e-4):
         model = self.model
         optimizer = torch.optim.Adam(self.model.parameters(), lr = lr)
         for epoch in range(n_epochs):
             # get loss
             optimizer.zero_grad()
-            y_hat = self.model(x_train[:, np.newaxis])
+            y_hat = self.model(x_train) # changed 
             loss = loss_fn(y_train, y_hat)
-
+            
             # update weights
             loss.backward()
             optimizer.step()
@@ -402,18 +409,17 @@ class nn():
         return model
     def evaluate(self, x_test, y_test, loss_fn = torch.nn.MSELoss()):
         with torch.no_grad():
-            y_hat = self.model(x_test[:, np.newaxis])
+            #y_hat = self.model(x_test[:, np.newaxis])
+            y_hat = self.model(x_test)
             l = loss_fn(y_test, y_hat)
         return l
     def pred(self, x_new):
         with torch.no_grad():
             y_hat = self.model(x_new)
-        return y_hat
+        return y_hat.numpy()
     def combine_with_old(self, model_old, decay_rate = .5):
-        for i in range(len(model_old)):
-            if "weight" in dir(model_old[i]):
-                self.model[i].weight = torch.nn.Parameter(decay_rate * model_old[i].weight + (1 - decay_rate) * self.model[i].weight)
-                self.model[i].bias = torch.nn.Parameter(decay_rate * model_old[i].bias + (1 - decay_rate) * self.model[i].bias)
+        for param_tensor in self.model.state_dict():
+            self.model.state_dict()[param_tensor] = (1 - decay_rate) * self.model.state_dict()[param_tensor] + decay_rate * model_old.state_dict()[param_tensor]     
     def save(self, path = ".", x_new = None, y_new = None, para = True):
         x_new, y_new = self.prepare_data(x_new, y_new)
         path = Path(path)
@@ -421,9 +427,11 @@ class nn():
         y_hat = self.pred(x_new)
         if not x_new is None:
             pd.DataFrame.from_dict({"x": [item[0] for item in x_new.tolist()], 
-                        "y": y_new,
+                        "y": [item[0] for item in y_new.tolist()],
                         "y_hat": [item[0] for item in y_hat.tolist()]
                        }).to_csv(path / Path("fitted.csv"))
+
+
 
 def baseline(input_data, alpha, beta, model,  loss_fn, N):
     """

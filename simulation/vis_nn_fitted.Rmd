@@ -17,23 +17,26 @@ base_dir <- "debug_nn_combine/"
 Fitted values over iterations
 ```{r, fig.width=12, fig.height=3.5}
 fitted_list <- list()
-for (t in 1:10) {
+for (t in 1:40) {
   fitted_list[[t]] <- read.csv(str_c(base_dir, t - 1, "/fitted.csv")) %>%
     dplyr::select( - X) %>%
     mutate(t = t) %>%
     pivot_longer(cols = c(y, y_hat), values_to = "Y")
-  
+    
 }
 
 fitted_list %>%
   bind_rows() %>%
-  filter(t < 5) %>%
+  filter(t %% 20 == 0) %>%
   mutate(t = as.factor(t)) %>%
   ggplot(aes(x = x, y = Y, color = name ), size = 2) +
   geom_point() +
   facet_wrap( as.factor(t) ~ ., nrow = 1) +
   theme(legend.position = "bottom")
+
 ```
+
+
 
 
 Original data
@@ -70,7 +73,7 @@ ggsave(filename = str_c(base_dir, "Raw_data.png"), width = 10, height = 8)
 
 ```{r, fig.width=12, fig.height=3}
 train_data <- list()
-for (t in 1:100) {
+for (t in 1:40) {
   # training data
   train_data[[t]] <- read.csv(str_c(base_dir, "current", t - 1, "/fitted.csv")) %>%
     dplyr::select( - X) %>%
@@ -93,7 +96,7 @@ train_data %>%
 
 
 ```{r,fig.width=6,fig.height=6}
-loss <- read.csv(str_c(base_dir, "losses.csv")) %>%
+loss <- read.csv(str_c(base_dir, "embed/losses.csv")) %>%
     rename(iteration = X) %>%
           rename(value = losses,
                  task = bandit_selects) %>%
