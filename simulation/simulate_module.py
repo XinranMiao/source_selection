@@ -10,6 +10,7 @@ import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 np.random.seed(1234)
+import copy
 
 # Generate data
 def random_functions(n_tasks, k_clusters, sigma_between, sigma_within):
@@ -92,7 +93,7 @@ class pre():
                 #if len(processed.shape) > 1:
                     #processed[:, 0] = 1
         return processed
-    def normalize_by_key(self, key_name, by_key, method = "min-max"):
+    def normalize_by_key(self, key_name, by_key, method = "scale"):
         """
         Normalizing one value of a dictionary, within groups defined by another key
         """
@@ -331,8 +332,10 @@ class lm():
         self.model = LinearRegression()
         return self
     def prepare_data(self, x, y):
-        if len(x.shape) <= 1:
+        if (len(x.shape) <= 1):
             x = np.array([np.ones(x.shape), np.array(x)]).T
+        elif (len(x.shape) > 1 and x.shape[1] == 1):
+            x = np.array([np.ones(x.shape), x]).T[0]
         return x, y
     def fit(self, x_train, y_train, loss_fn = None):
         self.model.fit(x_train, y_train)
@@ -356,6 +359,7 @@ class lm():
             pd.DataFrame.from_dict({"x": x_new[:, 1], "y": y_new, "y_hat": self.pred(x_new)}).to_csv(path / Path("fitted.csv"))
         return para
 
+
 class nn():
     """
     Neural network
@@ -363,6 +367,8 @@ class nn():
     def __init__(self, n_inputs = 1, n_outputs = 1, H = 200):
         self.model = torch.nn.Sequential(
             torch.nn.Linear(n_inputs, H),
+            torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
             torch.nn.ReLU(),
             torch.nn.Linear(H, H),
             torch.nn.ReLU(),
@@ -378,21 +384,23 @@ class nn():
             torch.nn.ReLU(),
             torch.nn.Linear(H, H),
             torch.nn.ReLU(),
+            torch.nn.Linear(H, H),
+            torch.nn.ReLU(),
             torch.nn.Linear(H, n_outputs),
         )
         return self
     def prepare_data(self, x, y):
         if type(x) != torch.Tensor:
+            if len(x.shape) == 1:
+                x = [x_ for x_ in x]
+                x = np.array([np.array(x)]).T
             x = torch.tensor(x).float()
-            #if len(x.shape) > 1:
-             #   x = torch.tensor(x[:, 1:]).float()
-            #else:
-            #    x = torch.tensor(x).float()
+            
         if type(y) != torch.Tensor:
             y = torch.tensor(y).float()
             y = y[:, np.newaxis]
         return x, y
-    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 10, lr = 5e-4):
+    def fit(self, x_train, y_train, loss_fn = torch.nn.MSELoss(), n_epochs = 50, lr = 1e-4):
         model = self.model
         optimizer = torch.optim.Adam(self.model.parameters(), lr = lr)
         for epoch in range(n_epochs):
@@ -433,36 +441,43 @@ class nn():
 
 
 
-def baseline(input_data, alpha, beta, model,  loss_fn, N):
+
+def baseline(input_data, alpha, beta, model_class,  loss_fn, N, bandit_final_model):
     """
     Baseline models of out-of-domain generalization
     """
-    final_loss = dict.fromkeys(["bandit", "all_source", "target_train", "random_source"], [])
+    final_loss = dict.fromkeys(["bandit_weighted", "bandit_final", "all_source", "target_train", "random_source"], [])
     
     # weighted all source, by bandit selection parameters ----
-    mod = model
+    if model_class == "nn":
+        mod = nn()
+    elif model_class == "lm":
+        mod = lm()
     X_end, y_end = draw_weighted_samples(input_data, alpha, beta)
     X_end, y_end = mod.prepare_data(X_end, y_end)
 
     mod.fit(X_end, y_end, loss_fn)
     test_x, test_y = mod.prepare_data(input_data["X_target_test"], input_data["y_target_test"])
-    final_loss["bandit"] = [mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
+    final_loss["bandit_weighted"] = [mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
+    
+    # bandit_final ----------------
+    final_loss["bandit_final"] = [bandit_final_model.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
     
     # All sources----
-    mod = model
+    mod.initialize()
     X_sources, y_sources = mod.prepare_data(input_data["source_dict"]["x"], input_data["source_dict"]["y"])
     mod.fit(X_sources, y_sources, loss_fn)
     final_loss["all_source"] = [mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
     
     # target train ---
-    mod = model
+    mod.initialize()
     X_train, y_train = mod.prepare_data(input_data["X_target_train"], input_data["y_target_train"])
-    mod_train = model.fit(X_train, y_train, loss_fn)
+    mod_train = mod.fit(X_train, y_train, loss_fn)
    
     final_loss["target_train"] =[ mod.evaluate(test_x, test_y, loss_fn = loss_fn).item()]
 
     # One random source + target train ----
-    mod = model
+    mod.initialize()
     for n in range(N):
         # one random source
         X_random, y_random, _ = subset_data(input_data["data_dict"],
@@ -483,26 +498,30 @@ def baseline(input_data, alpha, beta, model,  loss_fn, N):
 
 
 
-def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn, conservative = False):
+def bandit_source_train(input_data, model_class, batch_size, decay_rate, n_it, loss_fn, conservative = False,
+                       save_path = None):
     bandit_selects = [None]
     # initialize hyperparameters
     alpha = dict.fromkeys(input_data["source_task"], [1])
     beta = dict.fromkeys(input_data["source_task"], [1])
     pi = dict.fromkeys(input_data["source_task"], [0])
     
-    mod = model
+    if model_class == "nn":
+        mod = nn()
+    elif model_class == "lm":
+        mod = lm()
     val_x, val_y = mod.prepare_data(input_data["X_target_val"], input_data["y_target_val"])
 
-    # initialize model from target training data
+    # initialize model from target training data ----------------
     X_current, y_current = mod.prepare_data(input_data["X_target_train"], input_data["y_target_train"])
     mod.fit( X_current, y_current)
+    model_old = copy.deepcopy(mod.model)
+    
     l = mod.evaluate(val_x, val_y, loss_fn = loss_fn)
     losses = [l]
-    model_old = mod.model
     
+    # bandit selection loop  ----------------
     for t in range(n_it):
-        mod = model
-
         # select bandit
         bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
         bandit_selects.append(bandit_current)
@@ -513,12 +532,12 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
                                    key_name = "task", test_size = 0)
         batch_id = random.choices(list(range(0, len(y_current))), k = batch_size)
         X_current, y_current = X_current[batch_id, :], y_current[batch_id]
-
         X_current = np.concatenate((X_current, input_data["X_target_val"]), axis = 0)
         y_current = np.concatenate((y_current, input_data["y_target_val"]), axis = 0)
         X_current, y_current = mod.prepare_data(X_current, y_current)
 
         # train model
+        mod.initialize()
         mod.fit(X_current, y_current, loss_fn = loss_fn)
 
         # combine parameters with previous model
@@ -527,7 +546,7 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
         # evaluate model
         l = mod.evaluate(val_x, val_y, loss_fn = loss_fn)
         losses += [l]
-        model_old = mod.model
+        model_old = copy.deepcopy(mod.model)
         
         # update bandit parameters
         if conservative:
@@ -538,9 +557,13 @@ def bandit_source_train(input_data, model, batch_size, decay_rate, n_it, loss_fn
                                         bandit_current,
                                         thres = thres
                                        )
-    # baseline   
+        if not save_path is None:
+            mod.save(path = save_path.joinpath("current" + str(t)), x_new = X_current, y_new = y_current, para = True)
+            mod.save(path = save_path.joinpath(str(t)), x_new = val_x, y_new = val_y, para = True)
+    
+    # baseline   ---------------- 
     bl = baseline(input_data = input_data, alpha = alpha, beta = beta,
-                  N = 10, model = model, loss_fn = loss_fn)
+                  N = 10, model_class = model_class, loss_fn = loss_fn, bandit_final_model = mod)
+    
     return losses, alpha, beta, bandit_selects, pi, bl
-
 
