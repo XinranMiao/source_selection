@@ -1,7 +1,7 @@
 ---
 title: "Visualizing simulation on linear regression bandit"
 params:
-  data_path: "debug_nn_combine/"
+  data_path: "debug_yaxise/"
 output:
   html_document:
     df_print: paged
@@ -10,14 +10,19 @@ output:
 library(tidyr)
 library(tidyverse)
 theme_set(theme_minimal())
-base_dir <- "debug_nn_combine/"
+base_dir <- "debug_yaxis/"
 ```
 
+```{r}
+fit <- read.csv(str_c(base_dir, "val/fitted.csv"))
+plot(fit$x, fit$y)
+points(fit$x, fit$y_hat, col ="red")
+```
 
 Fitted values over iterations
 ```{r, fig.width=12, fig.height=3.5}
 fitted_list <- list()
-for (t in 1:40) {
+for (t in 1:100) {
   fitted_list[[t]] <- read.csv(str_c(base_dir, t - 1, "/fitted.csv")) %>%
     dplyr::select( - X) %>%
     mutate(t = t) %>%
@@ -96,7 +101,7 @@ train_data %>%
 
 
 ```{r,fig.width=6,fig.height=6}
-loss <- read.csv(str_c(base_dir, "embed/losses.csv")) %>%
+loss <- read.csv(str_c(base_dir, "/embed/losses.csv")) %>%
     rename(iteration = X) %>%
           rename(value = losses,
                  task = bandit_selects) %>%

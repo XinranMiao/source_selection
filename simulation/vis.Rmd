@@ -1,7 +1,7 @@
 ---
 title: "Visualizing simulation"
 params:
-  data_path: "degree10_scale_epochs50"
+  data_path: "degree10_0711"
 output:
   html_document:
     df_print: paged
@@ -27,7 +27,7 @@ dirs <- list.dirs(params$data_path, recursive = FALSE)
 ```
 ```{r}
 for (s_ in c("high_bw", "low_bw", "medium_bw")) {
-  d_ <- metadata %>% filter(s == s_) %>% dplyr::select(path) %>% unlist %>% .[1]
+  d_ <- metadata %>% filter(s == s_,sample_size == 500, target_train_size == 0.9) %>% dplyr::select(path) %>% unlist %>% .[100]
   d_ <- str_c(params$data_path, "/", d_)
   betas <- read_csv(str_c(d_, "/betas.csv"))
   x <- read_csv(str_c(d_, "/tasks.csv"))
@@ -251,8 +251,8 @@ for (d in dirs) {
 }
 
 for (sigma_set in c("high_bw", "low_bw", "medium_bw")) {
-  for (model in c("nn", "lm")) {
-    for(conservative in c("Truth", "False")) {
+  for (model in c("nn")) {
+    for(conservative in c("Truth")) {
       
     
     b <- bind_rows(baselines) %>%
@@ -331,4 +331,34 @@ for (sigma_set in c("high_bw", "low_bw", "medium_bw")) {
 ```
 
 
+
+```{r}
+b <- bind_rows(baselines) %>%
+  mutate(s = factor(s, levels = c("high_bw", "medium_bw", "low_bw")))
+plots <- b %>%
+  group_split(lr, n_epochs, sample_size, batch_size) %>%
+  map(function(dat) {
+    dat %>%
+       pivot_longer(cols = c("bandit_final", 
+                             "all_source", 
+                             "target_train", 
+                             "random_source"),
+               names_to = "method",
+               values_to = "loss") %>%
+      ggplot() +
+    facet_grid(s ~  target_train_size ) +
+    geom_tile(aes(x = method, y = target_task, fill = log(loss)) )+
+    labs(x = "Method", y = "Target task") +
+    scale_fill_viridis(begin = 1, end = 0) +
+      ggtitle(str_c("n_epochs = ",dat$n_epochs[1], 
+                    ", lr = ", dat$lr[1],
+                    ", sample size = ", dat$sample_size[1], 
+                    ", batch size = ",dat$batch_size[1]
+                    )) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  }
+)
+
+  
+```
 

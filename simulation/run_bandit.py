@@ -4,7 +4,8 @@ import numpy as np
 np.random.seed(1234)
 
 from simulate_module import *
-
+base_dir = Path("derived_data")
+base_dir.mkdir(exist_ok = True)
 metadata = []
 i = 0
 for conservative in [True, False]:
