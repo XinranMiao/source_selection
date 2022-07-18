@@ -18,16 +18,6 @@ epochs = 3            # no of epochs
 # raw data
 if EuroSat_Type == 'RGB':
   data_folder = '/content/sample_data/'
-  #root = os.path.join(data_folder, '2750/')
-  root = '2750/'
-  download_ON = os.path.exists(root)
-
-  if not download_ON:
-    # This can be long...
-    #os.chdir(data_folder)
-    os.system('wget http://madm.dfki.de/files/sentinel/EuroSAT.zip') #Just RGB Bands
-    !unzip EuroSAT.zip
-    download_ON = True
 elif EuroSat_Type == 'ALL':
     root = 'ds/images/remote_sensing/otherDatasets/sentinel_2/tif/'
     download_ON = os.path.exists(root)
@@ -35,6 +25,7 @@ elif EuroSat_Type == 'ALL':
       os.system('wget http://madm.dfki.de/files/sentinel/EuroSATallBands.zip') #All bands
       !unzip EuroSATallBands.zip
       download_ON = True
+
     
 data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform=None, extensions = 'tif')
 
