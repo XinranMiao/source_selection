@@ -1,0 +1,101 @@
+import random
+import time
+
+import numpy as np
+
+# geo
+from affine import Affine
+from geopy.geocoders import Nominatim
+from pyproj import Proj, transform
+import rasterio
+
+from skimage.transform import resize
+from sklearn.model_selection import train_test_split
+
+from skimage import io
+
+import torchvision
+import torch
+
+
+def iloader(path):
+    image = np.asarray((io.imread(path))/32000,dtype='float32')
+    return image.transpose(2,0,1)
+
+
+def Load_data(root, EuroSat_Type = "ALL"):
+    if EuroSat_Type == 'RGB':
+      data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform=None, extensions = 'jpg')
+    elif EuroSat_Type == 'ALL':
+      data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform=None, extensions = 'tif')
+    train_set, val_set = train_test_split(data, test_size=0.2, stratify=data.targets)
+    val_set, test_set = train_test_split(data, test_size=0.01, stratify=data.targets)
+    #print(np.unique(train_set, return_counts=True))  #uncomment for class IDs
+    #print(np.unique(val_set, return_counts=True))    #uncomment for class IDs
+      
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=16, shuffle=True, num_workers=3, drop_last = True)
+    val_loader = torch.utils.data.DataLoader(val_set, batch_size=16, shuffle=True, num_workers=0, drop_last = True)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=128, shuffle=True, num_workers=0, drop_last = True)
+    return train_loader, val_loader ,test_loader
+
+
+
+def get_coords(fname):
+    # Read raster
+    with rasterio.open(fname) as r:
+        T0 = r.transform  # upper-left pixel corner affine transform
+        p1 = Proj(r.crs)
+        A = r.read()  # pixel values
+
+    # All rows and columns
+    cols, rows = np.meshgrid(np.arange(A.shape[2]), np.arange(A.shape[1]))
+
+    # Get affine transform for pixel centres
+    T1 = T0 * Affine.translation(0.5, 0.5)
+    # Function to convert pixel row/column index (from 0) to easting/northing at centre
+    rc2en = lambda r, c: (c, r) * T1
+
+    # All eastings and northings (there is probably a faster way to do this)
+    eastings, northings = np.vectorize(rc2en, otypes=[float, float])(rows[0,0], cols[0,0])
+
+    # Project all longitudes, latitudes
+    p2 = Proj(proj='latlong',datum='WGS84')
+    longs, lats = transform(p1, p2, eastings, northings)
+    return longs, lats
+
+def locate(fname = None, long = None, lat = None):
+    if not fname is None:
+        long, lat = get_coords(fname)
+    geolocator = Nominatim(user_agent="geoapiExercises")
+    location = geolocator.reverse(str(lat)+","+str(long))
+    return location.raw['address']
+
+
+
+# Augmentation
+def get_random_pos(img, window_shape = [55,55] ):
+    """ Extract of 2D random patch of shape window_shape in the image """
+    w, h = window_shape
+    W, H = img.shape[-2:]
+    x1 = random.randint(0, W - w - 1)
+    #x2 = x1 + w
+    y1 = random.randint(0, H - h - 1)
+    #y2 = y1 + h
+    return x1, x1 + w, y1, y1 + h #x1, x2, y1, y2
+
+def random_crop_area(img):
+    x1,x2,y1,y2 = get_random_pos(img)
+    Sen_Im = img[:, x1:x2,y1:y2]
+    return resize(Sen_Im,img.shape,anti_aliasing=True)
+
+def sigmoid(z):
+    return 1/(1+np.exp(-z))
+
+def cus_aug(data):
+    data = torch.rot90(data,random.randint(-3,3), dims=random.choice([[3,2],[2,3]]))
+    if random.random()>0.75:
+        data = torch.flip(data, dims = random.choice([[2,],[3,],[2,3]]))
+    pixmis = torch.empty_like(data).random_(data.shape[-1])
+    pixmis = torch.where(pixmis>(data.shape[-1]/8),torch.ones_like(data),torch.zeros_like(data))
+    return data* pixmis
+
