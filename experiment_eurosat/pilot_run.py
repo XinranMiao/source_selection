@@ -23,7 +23,7 @@ elif EuroSat_Type == 'ALL':
     download_ON = os.path.exists(root)
     if not download_ON:
       os.system('wget http://madm.dfki.de/files/sentinel/EuroSATallBands.zip') #All bands
-      !unzip EuroSATallBands.zip
+      os.system('unzip EuroSATallBands.zip')
       download_ON = True
 
     
