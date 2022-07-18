@@ -12,7 +12,7 @@ EuroSat_Type = 'ALL'    # use 'RGB' or 'ALL' for type of Eurosat Dataset. Just c
 target_country = 'Magyarország'
 lr = 0.01               # learn_rate
 milestones = [50,75,90] # multistep scheduler
-epochs = 3            # no of epochs
+epochs = 50            # no of epochs
 output_path = "./" + target_country
 
 # raw data
