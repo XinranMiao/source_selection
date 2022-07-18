@@ -5,7 +5,7 @@ log = /home/xmiao27/logs/eurosat-$(Process).log
 error = /home/xmiao27/logs/eurosat-$(Process).err
 output = /home/xmiao27/logs/eurosat-$(Process).out
 
-#executable = pilot.sh
+executable = pilot.sh
 #arguments = $(target) $(k) $(seed) $(criteria) $(feature) $(proportion)
 
 #should_transfer_files = YES
