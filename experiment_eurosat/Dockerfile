@@ -7,7 +7,8 @@ FROM nvidia/cuda:11.4.0-base-ubuntu20.04
 # Add some dependencies
 RUN apt-get clean && apt-get update -y -qq \
   && DEBIAN_FRONTEND="noninteractive" apt-get install --yes --no-install-recommends curl git build-essential vim ffmpeg libsm6 libxext6\
-  && apt-get install wget
+  && apt-get install wget \
+  && apt-get install unzip
 
 RUN useradd --shell /bin/bash --create-home --home-dir /home/xinranmiao xinranmiao
 USER xinranmiao
