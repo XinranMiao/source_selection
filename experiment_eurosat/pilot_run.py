@@ -9,6 +9,7 @@ import torch.optim as optim
 
 # Set parameters
 EuroSat_Type = 'ALL'    # use 'RGB' or 'ALL' for type of Eurosat Dataset. Just change in this line. Rest of the code is managed for both type
+target_country = 'Portugal'#'Magyarország'
 lr = 0.01               # learn_rate
 milestones = [50,75,90] # multistep scheduler
 epochs = 3            # no of epochs
@@ -46,3 +47,34 @@ id_countries = dict.fromkeys(countries)
 for k in id_countries.keys():
     id_countries[k] = [v for (i, v) in enumerate(geo_dict["id"]) if geo_dict["country"][i] == k]
 
+
+# source - target split
+id_target = id_countries[target_country]
+id_train = random.sample(id_target, 50)
+id_test = list(set(id_target) - set(id_train))
+
+loader_target_train = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_train), 
+                                                  batch_size=4, shuffle=False, num_workers=2)
+loader_target_test = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_test), 
+                                                  batch_size=4, shuffle=False, num_workers=2)
+id_random_source = random.sample(list(geo_dict["id"].values()),
+                                len(loader_target_train.dataset))
+loader_random_source = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_random_source), 
+                                                  batch_size=4, shuffle=False, num_workers=2)
+                                          
+
+
+## Train
+np.random.seed(0)
+torch.cuda.manual_seed(0)
+random.seed(0)
+print("pytorch version", torch.__version__)
+criteria = torch.nn.CrossEntropyLoss()
+net = Load_model()
+if torch.cuda.is_available():
+    net=net.cuda()
+optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
+
+
+net = train(net, loader_target_train, loader_target_test, criteria, optimizer, epochs, scheduler)
