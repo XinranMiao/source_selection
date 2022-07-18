@@ -9,11 +9,11 @@ import torch.optim as optim
 
 # Set parameters
 EuroSat_Type = 'ALL'    # use 'RGB' or 'ALL' for type of Eurosat Dataset. Just change in this line. Rest of the code is managed for both type
-target_country = 'Portugal'#'Magyarország'
+target_country = 'Magyarország'
 lr = 0.01               # learn_rate
 milestones = [50,75,90] # multistep scheduler
 epochs = 3            # no of epochs
-
+output_path = "./" + target_country
 
 # raw data
 if EuroSat_Type == 'RGB':
@@ -41,19 +41,18 @@ for k in id_countries.keys():
 
 # source - target split
 id_target = id_countries[target_country]
-id_train = random.sample(id_target, 50)
-id_test = list(set(id_target) - set(id_train))
+id_train = random.sample(id_target, 320)
+id_test = list(set(id_target) - set(id_train))[0:160]
 
 loader_target_train = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_train), 
-                                                  batch_size=4, shuffle=False, num_workers=2)
+                                                  batch_size= 16, shuffle=False, num_workers=0)
 loader_target_test = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_test), 
-                                                  batch_size=4, shuffle=False, num_workers=2)
+                                                  batch_size= 16, shuffle=False, num_workers=0)
+
 id_random_source = random.sample(list(geo_dict["id"].values()),
                                 len(loader_target_train.dataset))
 loader_random_source = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_random_source), 
-                                                  batch_size=4, shuffle=False, num_workers=2)
-                                          
-
+                                                  batch_size= 16, shuffle=False, num_workers=0)
 
 ## Train
 np.random.seed(0)
@@ -69,3 +68,8 @@ scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gam
 
 
 net = train(net, loader_target_train, loader_target_test, criteria, optimizer, epochs, scheduler)
+torch.save(net.state_dict(), output_path + "target_train.pt" )
+
+net_random = Load_model()
+net_random = train(net_random, loader_random_source, loader_target_test, criteria, optimizer, epochs, scheduler)
+torch.save(net_random.state_dict(), output_path + "random_source.pt" )
