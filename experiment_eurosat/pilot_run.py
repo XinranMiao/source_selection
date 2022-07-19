@@ -9,9 +9,9 @@ import torch.optim as optim
 
 # Set parameters
 EuroSat_Type = 'ALL'    # use 'RGB' or 'ALL' for type of Eurosat Dataset. Just change in this line. Rest of the code is managed for both type
-target_country = 'France'
+target_country = 'United Kingdom'
 lr = 0.01               # learn_rate
-milestones = [50,75,90] # multistep scheduler
+milestones = [50, 75, 90] # multistep scheduler
 epochs =  100           # no of epochs
 output_path = "./" + target_country
 
@@ -41,13 +41,14 @@ for k in id_countries.keys():
 
 # source - target split
 id_target = id_countries[target_country]
-id_train = random.sample(id_target, 320)
-id_test = list(set(id_target) - set(id_train))[0:160]
+id_train = random.sample(id_target, 640)
+id_test = list(set(id_target) - set(id_train))#[0:160]
+id_test = random.sample(id_test, 160)
 
 loader_target_train = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_train), 
-                                                  batch_size= 16, shuffle=False, num_workers=0)
+                                                  batch_size = 16, shuffle = True, num_workers = 0)
 loader_target_test = torch.utils.data.DataLoader(torch.utils.data.Subset(data, id_test), 
-                                                  batch_size= 16, shuffle=False, num_workers=0)
+                                                  batch_size = 16, shuffle = True, num_workers = 0)
 
 id_random_source = random.sample(list(geo_dict["id"].values()),
                                 len(loader_target_train.dataset))
