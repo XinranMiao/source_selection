@@ -12,7 +12,7 @@ EuroSat_Type = 'ALL'    # use 'RGB' or 'ALL' for type of Eurosat Dataset. Just c
 target_country = 'Magyarország'
 lr = 0.01               # learn_rate
 milestones = [50,75,90] # multistep scheduler
-epochs = 50            # no of epochs
+epochs =  100           # no of epochs
 output_path = "./" + target_country
 
 # raw data
@@ -66,10 +66,10 @@ if torch.cuda.is_available():
 optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
 
+net_random = Load_model()
+net_random = train(net_random, loader_random_source, loader_target_test, criteria, optimizer, epochs, scheduler)
+torch.save(net_random.state_dict(), output_path + "random_source.pt" )
 
 net = train(net, loader_target_train, loader_target_test, criteria, optimizer, epochs, scheduler)
 torch.save(net.state_dict(), output_path + "target_train.pt" )
 
-net_random = Load_model()
-net_random = train(net_random, loader_random_source, loader_target_test, criteria, optimizer, epochs, scheduler)
-torch.save(net_random.state_dict(), output_path + "random_source.pt" )
