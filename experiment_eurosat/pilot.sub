@@ -13,9 +13,9 @@ executable = pilot.sh
 #transfer_input_files =
 
 request_cpus = 1
-#requirements =(CUDACapability >= 7.5) && (has_avx == true)&& (Target.HasCHTCStaging == true)
-requirements =(has_avx == true)&& (Target.HasCHTCStaging == true)
-#request_gpus = 1
+requirements =(CUDACapability >= 7.5) && (has_avx == true)&& (Target.HasCHTCStaging == true)
+#requirements =(has_avx == true)&& (Target.HasCHTCStaging == true)
+request_gpus = 1
 #+WantGPULab = true
 request_memory = 4GB
 request_disk = 10GB
