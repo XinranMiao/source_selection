@@ -9,3 +9,4 @@ cd source_selection/experiment_eurosat
 cp /staging/xmiao27/metadata.csv .
 
 python3 pilot_run.py
+mv *pt ~

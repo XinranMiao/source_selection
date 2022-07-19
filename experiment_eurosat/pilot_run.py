@@ -9,7 +9,7 @@ import torch.optim as optim
 
 # Set parameters
 EuroSat_Type = 'ALL'    # use 'RGB' or 'ALL' for type of Eurosat Dataset. Just change in this line. Rest of the code is managed for both type
-target_country = 'Magyarország'
+target_country = 'France'
 lr = 0.01               # learn_rate
 milestones = [50,75,90] # multistep scheduler
 epochs =  100           # no of epochs
