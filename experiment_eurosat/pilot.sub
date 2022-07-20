@@ -18,7 +18,7 @@ requirements =(has_avx == true) && (CUDACapability >= 7)
 request_gpus = 1
 #+WantGPULab = true
 request_memory = 4GB
-request_disk = 10GB
+request_disk = 5GB
 #+LongJob = true
 
 queue
