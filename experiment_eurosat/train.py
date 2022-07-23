@@ -73,7 +73,7 @@ def train(net, train_, val_, criterion, optimizer, epochs=None, scheduler=None, 
             optimizer.step()
             losses = np.append(losses,loss.item())
             mean_losses = np.append(mean_losses, np.mean(losses[max(0,iter_-100):iter_]))
-            if iter_ % 600 == 0: #printing after 600 epochs
+            if iter_ % 50 == 0: #printing after 600 epochs
                 clear_output()
                 print('Iteration Number',iter_,'{} seconds'.format(time.time() - t0))
                 t0 = time.time()
@@ -99,4 +99,5 @@ def train(net, train_, val_, criterion, optimizer, epochs=None, scheduler=None, 
         if e % save_epoch == 0:
             
             torch.save(net.state_dict(), '.\Eurosat{}'.format(e))
+    print('validation accuracy : {}'.format(val_acc[-1]))
     return net

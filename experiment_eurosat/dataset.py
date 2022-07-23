@@ -33,7 +33,7 @@ def Load_data(root, EuroSat_Type = "ALL"):
     #print(np.unique(train_set, return_counts=True))  #uncomment for class IDs
     #print(np.unique(val_set, return_counts=True))    #uncomment for class IDs
       
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=16, shuffle=True, num_workers=3, drop_last = True)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=16, shuffle=True, num_workers=0, drop_last = True)
     val_loader = torch.utils.data.DataLoader(val_set, batch_size=16, shuffle=True, num_workers=0, drop_last = True)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=128, shuffle=True, num_workers=0, drop_last = True)
     return train_loader, val_loader ,test_loader
