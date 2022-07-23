@@ -63,7 +63,10 @@ print("pytorch version", torch.__version__)
 criteria = torch.nn.CrossEntropyLoss()
 net = Load_model()
 if torch.cuda.is_available():
+    print("cuda is available")
     net=net.cuda()
+else:
+    print("cuda is not available")
 optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=0.1)
 
