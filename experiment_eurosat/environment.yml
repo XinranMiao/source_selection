@@ -9,25 +9,19 @@ dependencies:
   - cudatoolkit=10.2
   - pandas
   - scikit-learn 
-  - matplotlib==3.3.2
+  - matplotlib #==3.3.2
   - pytorch
   - geopy
   - ipython
-  - pyproj>=3.0
+  - pyproj #>=3.0
   - rasterstats
   - torchvision #==0.9.0 # this line added
   - pip
   - pip:
     - torch
-    #- torchvision
-    #- torch-scatter -f https://pytorch-geometric.com/whl/torch-1.10.0+cu102.html
-    #- outdated==0.2.0
-    #- opencv-python==3.4.14.53
-    #- ogb==1.2.6
-    - pillow==7.2.0
-    - pytz==2020.4
-    #- wilds==1.1.0
-    - scikit-image==0.19.3
+    - pillow #==7.2.0
+    - pytz #==2020.4
+    - scikit-image #==0.19.3
     #- affine==1.3.1
 
     #- pyproj==1.9.5.1
