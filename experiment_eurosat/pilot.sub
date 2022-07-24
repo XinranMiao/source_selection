@@ -1,11 +1,10 @@
 universe = docker
-docker_image = xinranmiao/cuda_transfer:220718
-
+docker_image = xinranmiao/cuda_transfer:remove_version
 log = /home/xmiao27/logs/eurosat-$(Process).log
 error = /home/xmiao27/logs/eurosat-$(Process).err
 output = /home/xmiao27/logs/eurosat-$(Process).out
 
-executable = pilot.sh
+#executable = pilot.sh
 #arguments = $(country)
 
 should_transfer_files = YES
@@ -13,10 +12,10 @@ when_to_transfer_output = ON_EXIT
 transfer_input_files = metadata.csv
 
 request_cpus = 1
-#requirements =(CUDACapability >= 7) && (has_avx == true)&& (Target.HasCHTCStaging == true)
-requirements =(has_avx == true) && (CUDACapability >= 7)
+requirements =(CUDACapability >= 7.5) && (has_avx == true)&& (Target.HasCHTCStaging == true)
+#requirements =(has_avx == true) && (CUDACapability >= 7)
 request_gpus = 1
-#+WantGPULab = true
++WantGPULab = true
 request_memory = 4GB
 request_disk = 5GB
 #+LongJob = true
