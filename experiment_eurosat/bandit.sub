@@ -1,0 +1,24 @@
+universe = docker
+docker_image = xinranmiao/cuda_transfer:remove_version
+log = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).log
+error = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).err
+output = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).out
+
+executable = bandit.sh
+arguments = $(country) $(algorithm)
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = metadata.csv
+
+request_cpus = 1
+requirements =(CUDACapability >= 6) && (has_avx == true)&& (Target.HasCHTCStaging == true)
+#requirements =(has_avx == true) && (CUDACapability >= 7)
+request_gpus = 1
+#+WantGPULab = true
+request_memory = 4GB
+request_disk = 9GB
++LongJob = true
+
+queue country algorithm from args.txt
+
