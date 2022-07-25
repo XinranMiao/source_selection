@@ -99,3 +99,34 @@ def cus_aug(data):
     pixmis = torch.where(pixmis>(data.shape[-1]/8),torch.ones_like(data),torch.zeros_like(data))
     return data* pixmis
 
+def prepare_input_data(geo_df, target_task = "France", train_size = 640, val_size = 160, test_size = 160):
+    geo_dict = geo_df.to_dict()
+    countries = list(set(geo_dict["country"].values()))
+    id_countries = dict.fromkeys(countries)
+    for k in id_countries.keys():
+        id_countries[k] = [v for (i, v) in enumerate(geo_dict["id"]) if geo_dict["country"][i] == k]
+
+    
+    input_data = {
+        "source_task": list(set(id_countries.keys()) - set(target_task)),
+        "target_task": target_task
+    }
+    input_data["data_dict"] = {}
+    for k in geo_dict.keys():
+        input_data["data_dict"][k] = list(geo_dict[k].values())
+
+    input_data["idx_source"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v != input_data["target_task"]]
+    idx_target = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v == input_data["target_task"]]
+
+    input_data["source_dict"] = {}
+    for k in geo_dict.keys():
+        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"]]
+
+    random.seed(0)
+    input_data["idx_train"] = random.sample(idx_target, train_size)
+    idx_rest = list(set(idx_target) - set(input_data["idx_train"]))
+    input_data["idx_test"] = random.sample(idx_rest, test_size)
+    input_data["idx_val"] = list(set(idx_rest) - set(input_data["idx_test"]))
+    input_data["idx_val"] = random.sample(input_data["idx_test"], val_size)
+    return input_data
+
