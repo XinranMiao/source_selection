@@ -1,3 +1,30 @@
+Bandit selection
+
+- `bandit.sub` and `bandit.sh`: submit file and bash script for CHTC jobs.
+- `args.txt`: arguments for bandit selection in CHTC.
+- `bandit_run.py`: main script to run the bandit selection algorithm
+- `bandit.ipynb`: the notebook version of `bandit_run.py`
+
+- `train.py` and `dataset.py`: modules for model training and data loading.
+
+
+Preparation for dataset and environment
+
+- `pilot.sub` and `pilot.sh`: submit file and bash script for checking environment on CHTC.
+- `pilot_run.py`: main script to run a pilot model.
+- `pilot_run.ipynb`: the notebook version of `pilot_run.py`.
+- `location_eurosat.ipynb`: notebook to extract location information from the original dataset.
+
+Checking dataset and debugging
+
+- `check_labels.ipynb`: checks labels across countries.
+- `debug.ipynb`.
+
+
+Environment
+
+- `Dockerfile` and `environment.yml`: specifies a docker image.
+
 
 Reference
 
