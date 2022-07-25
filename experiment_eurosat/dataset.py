@@ -102,6 +102,7 @@ def cus_aug(data):
 def prepare_input_data(geo_df, target_task = "France", train_size = 640, val_size = 160, test_size = 160):
     geo_dict = geo_df.to_dict()
     countries = list(set(geo_dict["country"].values()))
+    countries = [x for x in countries if str(x) != "nan"]
     id_countries = dict.fromkeys(countries)
     for k in id_countries.keys():
         id_countries[k] = [v for (i, v) in enumerate(geo_dict["id"]) if geo_dict["country"][i] == k]
@@ -113,7 +114,7 @@ def prepare_input_data(geo_df, target_task = "France", train_size = 640, val_siz
     }
     input_data["data_dict"] = {}
     for k in geo_dict.keys():
-        input_data["data_dict"][k] = list(geo_dict[k].values())
+        input_data["data_dict"][k] = [geo_dict[k][i] for (i, v) in enumerate(geo_dict["country"].values()) if str(v) != "nan"]
 
     input_data["idx_source"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v != input_data["target_task"]]
     idx_target = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v == input_data["target_task"]]
@@ -129,4 +130,5 @@ def prepare_input_data(geo_df, target_task = "France", train_size = 640, val_siz
     input_data["idx_val"] = list(set(idx_rest) - set(input_data["idx_test"]))
     input_data["idx_val"] = random.sample(input_data["idx_test"], val_size)
     return input_data
+
 
