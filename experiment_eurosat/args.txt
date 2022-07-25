@@ -1,0 +1,7 @@
+France,bandit
+France,random
+Italia,bandit
+Italia,random
+Sverige,bandit
+Sverige,random
+
