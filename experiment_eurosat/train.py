@@ -194,6 +194,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
         if algorithm == "bandit":
             bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
             bandit_selects.append(bandit_current)
+            print("---", "At iteration ", t, ", source country is ", bandit_current, "-----\n")
             current_id = [input_data["source_dict"]["id"][i] for (i, v) in enumerate(input_data["source_dict"]['country']) if v == bandit_current]
             current_id = random.choices(current_id, k = iter_samples)
         else:
@@ -203,7 +204,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                                                           batch_size = 16, shuffle = True, num_workers = 0)
         net, acc = train(net, current_loader, target_test_loader , criteria, optimizer, n_epochs, scheduler)
 
-        print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", acc, "-------\n")
+        print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", acc)
 
         accs += [acc]
         if algorithm == "bandit":
