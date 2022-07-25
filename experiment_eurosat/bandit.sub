@@ -1,5 +1,5 @@
 universe = docker
-docker_image = xinranmiao/cuda_transfer:remove_version
+docker_image = xinranmiao/cuda_transfer:220718
 log = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).log
 error = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).err
 output = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).out
