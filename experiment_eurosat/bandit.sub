@@ -17,7 +17,7 @@ requirements =(CUDACapability >= 6) && (has_avx == true)&& (Target.HasCHTCStagin
 request_gpus = 1
 #+WantGPULab = true
 request_memory = 4GB
-request_disk = 6GB
+request_disk = 9GB
 +LongJob = true
 
 queue country algorithm from args.txt
