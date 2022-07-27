@@ -47,7 +47,8 @@ geo_df = pd.read_csv("metadata.csv")
 
 # Load data
 data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform=None, extensions = 'tif')
-input_data = prepare_input_data(geo_df, target_task)
+labels = [v[1] for (i, v) in enumerate(data)]
+input_data = prepare_input_data(geo_df, target_task, labels = labels)
 
 
 # Set seed
