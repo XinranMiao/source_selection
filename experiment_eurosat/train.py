@@ -60,17 +60,23 @@ def validation(model, test_,):
 
 def train(net, train_, val_, criterion, optimizer, epochs=None, scheduler=None, weights=None, save_epoch = 10,
 plot = False):
-    losses=[]; acc=[]; mean_losses=[]; val_acc=[]
-    iter_ = t0 =0
     t0 = time.time()
+    losses=[]; acc=[]; mean_losses=[]; 
+    train_acc = []; val_acc=[]; train_losses = []
+    iter_ = 0
+    
     for e in range(1, epochs + 1):
         print('e=',e,'{} seconds'.format(time.time() - t0))
+        
         net.train()
+        
         for batch_idx, (data, target) in enumerate(train_):
+            
             if torch.cuda.is_available():
                 data, target =  cus_aug(Variable(data.cuda())), Variable(target.cuda())
             else:
                 data, target =  cus_aug(Variable(data)), Variable(target)
+                
             optimizer.zero_grad()
             output = net(data)
             loss = criterion(output, target)
@@ -78,36 +84,35 @@ plot = False):
             optimizer.step()
             losses = np.append(losses,loss.item())
             mean_losses = np.append(mean_losses, np.mean(losses[max(0,iter_-100):iter_]))
-            if iter_ % 500 == 0: #printing after 600 epochs
-                clear_output()
-                print('Iteration Number',iter_,'{} seconds'.format(time.time() - t0))
-                t0 = time.time()
-                pred = output.data.cpu().numpy()#[0]
-                pred=sigmoid(pred)
-                gt = target.data.cpu().numpy()#[0]
-                acc = np.append(acc,accuracy(gt,pred))
-                val_acc = np.append(val_acc,validation(net, val_))
-                print('Train (epoch {}/{}) [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {}\tLearning Rate:{}'.format(
-                    e, epochs, batch_idx, len(train_),
-                    100. * batch_idx / len(train_), loss.item(), acc[-1],optimizer.param_groups[0]['lr']))
-                if plot is True:
-                    plt.plot(mean_losses) and plt.show()
-                    plt.plot( range(len(acc)) ,acc,'b',label = 'training')
-                    plt.plot( range(len(val_acc)), val_acc,'r--',label = 'validation')
-                    plt.legend() and plt.show()
-                    print('validation accuracy : {}'.format(val_acc[-1]))
-                
-                #print(mylabels[np.where(gt[1,:])[0]])
+            
+            clear_output()
+            pred = output.data.cpu().numpy()#[0]
+            pred=sigmoid(pred)
+            gt = target.data.cpu().numpy()#[0]
+            acc = np.append(acc,accuracy(gt,pred))
+            
+            
+            #print('Train (epoch {}/{}) [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {}\tLearning Rate:{}'.format(
+           # e, epochs, batch_idx, len(train_),
+       # 100. * batch_idx / len(train_), loss.item(), acc[-1],optimizer.param_groups[0]['lr']))
+            
             iter_ += 1
             
             del(data, target, loss)
+        train_losses = np.append(train_losses, np.mean(losses))
+        train_acc = np.append(train_acc, np.mean(acc))
         if scheduler is not None:
            scheduler.step()
-        if e % save_epoch == 0:
-            
-            torch.save(net.state_dict(), '.\Eurosat{}'.format(e))
-    print('validation accuracy : {}'.format(val_acc[-1]))
-    return net, val_acc[-1]
+        #if e % save_epoch == 0:
+            #torch.save(net.state_dict(), '.\Eurosat{}'.format(e))
+    
+        # make predictions on the validation set
+        val_acc = np.append(val_acc,validation(net, val_))
+     
+    
+                
+    return net, val_acc, train_acc, train_losses
+
 
 # Data manipulation
 def get_key(my_dict, val):
@@ -169,7 +174,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
 
     
     # initialize hyperparameters ---
-    
+    train_log = []
     bandit_selects = [None]
     alpha = dict.fromkeys(input_data["source_task"], [1])
     beta = dict.fromkeys(input_data["source_task"], [1])
@@ -184,9 +189,10 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
     if torch.cuda.is_available():
         net=net.cuda()
 
-    net, acc = train(net, target_train_loader , target_test_loader , criteria, optimizer, n_epochs, scheduler)
-    print("Model initiated with acc ", acc)
-    accs = [acc]
+    net, val_acc, _, _ = train(net, target_train_loader, target_test_loader , criteria, optimizer, 2, scheduler)
+
+    print("Model initiated with acc ", val_acc[-1])
+    accs = [val_acc[-1]]
     
     # train ---
     
@@ -202,22 +208,35 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
             current_id = random.sample(input_data["idx_source"], k = iter_samples)
         current_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_test"]), 
                                                           batch_size = 16, shuffle = True, num_workers = 0)
-        net, acc = train(net, current_loader, target_test_loader , criteria, optimizer, n_epochs, scheduler)
-
-        print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", acc)
-
-        accs += [acc]
+        net, val_acc, train_acc, train_losses = train(net, current_loader, target_test_loader , criteria, optimizer, 2, scheduler)
+        
+        print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", val_acc[-1])
+        accs += [val_acc[-1]]
+        
+        
+        # save logs
+        train_log.append({"iter": [t for i in range(n_it)],
+                          "train_acc": val_acc.tolist(),
+                          "val_acc": val_acc.tolist(),
+                          "train_losses": train_losses.tolist()})
+        
         if algorithm == "bandit":
             alpha, beta = update_hyper_para(alpha, beta, t, accs,
                                             bandit_current
                                            )
         if not output_path is None:
-            if t % 1 == 0:
+            if t % 10 == 0:
                 torch.save(net.state_dict(), output_path / Path(input_data["target_task"] + "_" + algorithm + ".pt" ))
-    if not output_path is None:
-        save_output(output_path / Path(input_data["target_task"] + "_" + algorithm + "_evaluation.csv" ), accs, accs)
-        if algorithm == "bandit":
-            pd.DataFrame.from_dict(alpha).to_csv(output_dir / "alpha.csv")
-            pd.DataFrame.from_dict(beta).to_csv(output_dir / "beta.csv")
-            pd.DataFrame.from_dict(pi).to_csv(output_dir / "pi.csv")
+                save_output(output_path / Path(input_data["target_task"] + "_" + algorithm + "_evaluation.csv" ), accs, accs)
+                
+                print(train_log)
+                log_df = pd.concat([pd.DataFrame(r) for r in train_log])
+                log_df.to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "train_log.csv"))
+
+                if algorithm == "bandit":
+                    pd.DataFrame.from_dict(alpha).to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "alpha.csv"))
+                    pd.DataFrame.from_dict(beta).to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "beta.csv"))
+                    pd.DataFrame.from_dict(pi).to_csv(output_path / Path(input_data["target_task"] + "_" + algorithm +  "pi.csv"))
     return net, bandit_selects, accs, alpha, beta, pi
+
+
