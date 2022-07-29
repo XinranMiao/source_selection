@@ -99,7 +99,28 @@ def cus_aug(data):
     pixmis = torch.where(pixmis>(data.shape[-1]/8),torch.ones_like(data),torch.zeros_like(data))
     return data* pixmis
 
-def prepare_input_data(geo_df, target_task = "France", train_size = 640, val_size = 160, test_size = 160):
+def check_labels(input_data, labels):
+    """
+    check labels across source / target train / target validation / target test sets, and keep labels in common
+    """
+    train_labels = [labels[i] for i in input_data["idx_train"]]
+    val_labels = [labels[i] for i in input_data["idx_val"]]
+    test_labels = [labels[i] for i in input_data["idx_test"]]
+    source_labels = [labels[i] for i in input_data["idx_source"]]
+
+    common_labels = list(set(train_labels).intersection(val_labels).intersection(test_labels).intersection(source_labels))
+
+    input_data["idx_train"] = [i for i in input_data["idx_train"] if labels[i] in common_labels]
+    input_data["idx_test"] = [i for i in input_data["idx_test"] if labels[i] in common_labels]
+    input_data["idx_val"] = [i for i in input_data["idx_val"] if labels[i] in common_labels]
+    input_data["idx_source"] = [i for i in input_data["idx_source"] if labels[i] in common_labels]
+    
+    return input_data
+
+    
+def prepare_input_data(geo_df, target_task, labels = None, 
+                       train_size = .6, test_size = .5, target_size = 1600):
+    
     geo_dict = geo_df.to_dict()
     countries = list(set(geo_dict["country"].values()))
     countries = [x for x in countries if str(x) != "nan"]
@@ -107,28 +128,61 @@ def prepare_input_data(geo_df, target_task = "France", train_size = 640, val_siz
     for k in id_countries.keys():
         id_countries[k] = [v for (i, v) in enumerate(geo_dict["id"]) if geo_dict["country"][i] == k]
 
+    # create a dictionary for input data
     
     input_data = {
         "source_task": list(set(id_countries.keys()) - set(target_task)),
         "target_task": target_task
     }
+
+    
+    # all data, both source and target
+    
     input_data["data_dict"] = {}
     for k in geo_dict.keys():
         input_data["data_dict"][k] = [geo_dict[k][i] for (i, v) in enumerate(geo_dict["country"].values()) if str(v) != "nan"]
 
-    input_data["idx_source"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v != input_data["target_task"]]
-    idx_target = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v == input_data["target_task"]]
 
+        
+    # split indices for source and target
+    
+    input_data["idx_source"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v != input_data["target_task"]]
+    input_data["idx_target"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v == input_data["target_task"]]
+
+    target_labels = list(set([labels[i] for i in input_data["idx_target"]]))
+
+    
+    # For source data, create a dictionary to record the countries
+    
     input_data["source_dict"] = {}
     for k in geo_dict.keys():
-        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"]]
+        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"] if labels[i] in target_labels]
 
-    random.seed(0)
-    input_data["idx_train"] = random.sample(idx_target, train_size)
-    idx_rest = list(set(idx_target) - set(input_data["idx_train"]))
-    input_data["idx_test"] = random.sample(idx_rest, test_size)
-    input_data["idx_val"] = list(set(idx_rest) - set(input_data["idx_test"]))
-    input_data["idx_val"] = random.sample(input_data["idx_test"], val_size)
+   
+    # resample the target to make the number of samples is fixed
+    
+    if len(input_data["idx_target"]) >= target_size:
+        input_data["idx_target"] = random.sample(input_data["idx_target"], k = target_size)
+    else:
+        input_data["idx_target"] = random.choices(input_data["idx_target"], k = target_size)
+        
+    
+    # split the target data into train / validation / test sets
+    
+    y_target = [labels[i] for i in input_data["idx_target"]]
+    input_data["idx_train"], idx_rest, _, y_rest = train_test_split(input_data["idx_target"],
+                                                              y_target,
+                                                              test_size = 1 - train_size,
+                                                              random_state = 0, shuffle = True)
+    input_data["idx_val"], input_data["idx_test"], _, _ = train_test_split(idx_rest,
+                                                              y_rest,
+                                                              test_size = test_size,
+                                                              random_state = 0, shuffle = True)
+
+    # check the labels in case the split is too imbalanced
+    if labels is None:
+        input_data = input_data
+    else:
+        input_data = check_labels(input_data, labels)
     return input_data
-
 
