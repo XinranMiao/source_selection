@@ -1,24 +1,26 @@
 universe = docker
 docker_image = xinranmiao/cuda_transfer:220718
-log = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).log
-error = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).err
-output = /home/xmiao27/logs/eurosat-$(country)_$(algorithm).out
+log = /home/xmiao27/logs/eurosat-$(country)_$(algorithm)_$(target_size).log
+error = /home/xmiao27/logs/eurosat-$(country)_$(algorithm)_$(target_size).err
+output = /home/xmiao27/logs/eurosat-$(country)_$(algorithm_$(target_size).out
 
 executable = bandit.sh
-arguments = $(country) $(algorithm)
+arguments = $(country) $(algorithm) $(target_size)
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
 transfer_input_files = metadata.csv
 
 request_cpus = 1
-requirements =(CUDACapability >= 6) && (has_avx == true)&& (Target.HasCHTCStaging == true)
+#requirements =(CUDACapability >= 6) && (has_avx == true)&& (Target.HasCHTCStaging == true)
 #requirements =(has_avx == true) && (CUDACapability >= 7)
-request_gpus = 1
+requirements = (has_avx == true)&& (Target.HasCHTCStaging == true)
+#request_gpus = 1
 #+WantGPULab = true
-request_memory = 4GB
-request_disk = 9GB
+request_memory = 5GB
+request_disk = 10GB
 +LongJob = true
 
-queue country algorithm from args.txt
+queue country algorithm target_size from args.txt
+#queue
 

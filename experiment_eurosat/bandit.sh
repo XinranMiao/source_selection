@@ -8,8 +8,8 @@ git clone https://github.com/XinranMiao/source_selection
 cd source_selection/experiment_eurosat
 cp ~/metadata.csv .
 
-python3 bandit_run.py $1 $2
+python3 bandit_run.py $1 $2 $3
 
-tar -czf derived_data_"$1"_"$2".tar.gz derived_data
-cp derived_data_"$1"_"$2".tar.gz /staging/xmiao27
-mv derived_data_"$1"_"$2".tar.gz ~
+tar -czf derived_data_"$1"_"$2"_"$3".tar.gz derived_data
+#cp derived_data_"$1"_"$2".tar.gz /staging/xmiao27
+mv derived_data_"$1"_"$2"_"$3".tar.gz ~
