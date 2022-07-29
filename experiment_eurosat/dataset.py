@@ -179,10 +179,5 @@ def prepare_input_data(geo_df, target_task, labels = None,
                                                               test_size = test_size,
                                                               random_state = 0, shuffle = True)
 
-    # check the labels in case the split is too imbalanced
-    if labels is None:
-        input_data = input_data
-    else:
-        input_data = check_labels(input_data, labels)
     return input_data
 

@@ -16,7 +16,8 @@ EuroSat_Type = 'ALL'
 args = sys.argv
 target_task = str(args[1])
 algorithm = str(args[2])
-print("target is ", target_task, ", algorithm is ", algorithm, "\n")
+target_size = int(args[3])
+print("target is ", target_task, ", algorithm is ", algorithm, ", target size", str(target_size), "\n")
 
 from pathlib import Path
 output_path = Path("derived_data")
@@ -45,11 +46,10 @@ elif EuroSat_Type == 'ALL':
       download_ON = True
 geo_df = pd.read_csv("metadata.csv")
 
-# Load data
-data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform=None, extensions = 'tif')
+# load data
+data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform = None, extensions = 'tif')
 labels = [v[1] for (i, v) in enumerate(data)]
-input_data = prepare_input_data(geo_df, target_task, labels = labels)
-
+input_data = prepare_input_data(geo_df, target_task, labels = labels, target_size = target_size)
 
 # Set seed
 np.random.seed(0)
