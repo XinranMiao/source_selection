@@ -215,7 +215,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
         
         
         # save logs
-        train_log.append({"iter": [t for i in range(n_it)],
+        train_log.append({"iter": [t for i in range(n_epochs)],
                           "train_acc": val_acc.tolist(),
                           "val_acc": val_acc.tolist(),
                           "train_losses": train_losses.tolist()})

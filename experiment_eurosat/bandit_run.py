@@ -56,6 +56,26 @@ np.random.seed(0)
 torch.cuda.manual_seed(0)
 random.seed(0)
 
+# prepare data ---
+
+target_val_loader =  torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_val"]), 
+                                              batch_size = 16, shuffle = True, num_workers = 0)
+target_train_loader =  torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_train"]), 
+                                                  batch_size = 16, shuffle = True, num_workers = 0)
+target_test_loader =  torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_test"]), 
+                                                  batch_size = 16, shuffle = True, num_workers = 0)
+
+
+
+# initialize hyperparameters ---
+
+bandit_selects = [None]
+alpha = dict.fromkeys(input_data["source_task"], [1])
+beta = dict.fromkeys(input_data["source_task"], [1])
+pi = dict.fromkeys(input_data["source_task"], [0])
+
+
+
 # Run model
 _, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
                                                             n_epochs = 50, n_it = 100,
