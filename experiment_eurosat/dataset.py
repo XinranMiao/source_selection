@@ -131,7 +131,7 @@ def prepare_input_data(geo_df, target_task, labels = None,
     # create a dictionary for input data
     
     input_data = {
-        "source_task": list(set(id_countries.keys()) - set(target_task)),
+        "source_task": list(set(id_countries.keys()) - set([target_task])),
         "target_task": target_task
     }
 

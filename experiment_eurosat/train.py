@@ -189,7 +189,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
     if torch.cuda.is_available():
         net=net.cuda()
 
-    net, val_acc, _, _ = train(net, target_train_loader, target_test_loader , criteria, optimizer, 2, scheduler)
+    net, val_acc, _, _ = train(net, target_train_loader, target_test_loader , criteria, optimizer, epochs = n_epochs, scheduler = scheduler)
 
     print("Model initiated with acc ", val_acc[-1])
     accs = [val_acc[-1]]
@@ -208,7 +208,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
             current_id = random.sample(input_data["idx_source"], k = iter_samples)
         current_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_test"]), 
                                                           batch_size = 16, shuffle = True, num_workers = 0)
-        net, val_acc, train_acc, train_losses = train(net, current_loader, target_test_loader , criteria, optimizer, 2, scheduler)
+        net, val_acc, train_acc, train_losses = train(net, current_loader, target_test_loader , criteria, optimizer, epochs = n_epochs, scheduler = scheduler)
         
         print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", val_acc[-1])
         accs += [val_acc[-1]]
@@ -216,6 +216,9 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
         
         # save logs
         train_log.append({"iter": [t for i in range(n_epochs)],
+                          "target_task": [input_data["target_task"] for i in range(n_epochs)],
+                          "algorithm": [algorithm for i in range(n_epochs)],
+                          "target_size": [len(input_data["idx_train"]) for i in range(n_epochs)],
                           "train_acc": val_acc.tolist(),
                           "val_acc": val_acc.tolist(),
                           "train_losses": train_losses.tolist()})
