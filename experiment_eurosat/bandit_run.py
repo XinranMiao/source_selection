@@ -58,7 +58,7 @@ random.seed(0)
 
 # Run model
 _, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
-                                                            n_epochs = 2, n_it = 2,
-                                                            algorithm = algorithm, iter_samples = 16,
+                                                            n_epochs = 50, n_it = 100,
+                                                            algorithm = algorithm, iter_samples = 160,
                                                            output_path = output_path)
 
