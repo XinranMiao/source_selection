@@ -157,8 +157,10 @@ def prepare_input_data(geo_df, target_task, labels = None,
     input_data["source_dict"] = {}
     for k in geo_dict.keys():
         input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"] if labels[i] in target_labels]
+    
+    # rewrite the source tasks, because some countries may have non-overlapping labels with the target task
+    input_data["source_task"] = list(set(input_data["source_dict"]["country"]))
 
-   
     # resample the target to make the number of samples is fixed
     
     if len(input_data["idx_target"]) >= target_size:

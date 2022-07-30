@@ -163,26 +163,26 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                      lr = .01, milestones = milestones,
                      criteria = criteria, output_path = "."):
     # prepare data ---
-    
+
     target_val_loader =  torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_val"]), 
                                                   batch_size = 16, shuffle = True, num_workers = 0)
     target_train_loader =  torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_train"]), 
                                                       batch_size = 16, shuffle = True, num_workers = 0)
     target_test_loader =  torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_test"]), 
                                                       batch_size = 16, shuffle = True, num_workers = 0)
-    
 
-    
+
+
     # initialize hyperparameters ---
     train_log = []
     bandit_selects = [None]
     alpha = dict.fromkeys(input_data["source_task"], [1])
     beta = dict.fromkeys(input_data["source_task"], [1])
     pi = dict.fromkeys(input_data["source_task"], [0])
-    
-    
+
+
     # initialize model ---
-   
+
     net = Load_model()
     optimizer = optim.Adam(net.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones = milestones, gamma=0.1)
@@ -193,27 +193,30 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
 
     print("Model initiated with acc ", val_acc[-1])
     accs = [val_acc[-1]]
-    
+
     # train ---
-    
+
     for t in range(n_it):
         if algorithm == "bandit":
-            bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
-            bandit_selects.append(bandit_current)
-            print("---", "At iteration ", t, ", source country is ", bandit_current, "-----\n")
-            current_id = [input_data["source_dict"]["id"][i] for (i, v) in enumerate(input_data["source_dict"]['country']) if v == bandit_current]
+            current_id = []
+            while len(current_id) == 0:
+                bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
+                bandit_selects.append(bandit_current)
+
+                current_id = [input_data["source_dict"]["id"][i] for (i, v) in enumerate(input_data["source_dict"]['country']) if v == bandit_current]
             current_id = random.choices(current_id, k = iter_samples)
+            print("---", "At iteration ", t, ", source country is ", bandit_current, "-----\n")
         else:
             bandit_current = 0
             current_id = random.sample(input_data["idx_source"], k = iter_samples)
         current_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_test"]), 
                                                           batch_size = 16, shuffle = True, num_workers = 0)
         net, val_acc, train_acc, train_losses = train(net, current_loader, target_test_loader , criteria, optimizer, epochs = n_epochs, scheduler = scheduler)
-        
+
         print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", val_acc[-1])
         accs += [val_acc[-1]]
-        
-        
+
+
         # save logs
         train_log.append({"iter": [t for i in range(n_epochs)],
                           "target_task": [input_data["target_task"] for i in range(n_epochs)],
@@ -222,7 +225,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                           "train_acc": train_acc.tolist(),
                           "val_acc": val_acc.tolist(),
                           "train_losses": train_losses.tolist()})
-        
+
         if algorithm == "bandit":
             alpha, beta = update_hyper_para(alpha, beta, t, accs,
                                             bandit_current
@@ -231,7 +234,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
             if t % 10 == 0:
                 torch.save(net.state_dict(), output_path / Path(input_data["target_task"] + "_" + algorithm + ".pt" ))
                 save_output(output_path / Path(input_data["target_task"] + "_" + algorithm + "_evaluation.csv" ), accs, accs)
-                
+
                 print(train_log)
                 log_df = pd.concat([pd.DataFrame(r) for r in train_log])
                 log_df.to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "train_log.csv"))
@@ -240,6 +243,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                     pd.DataFrame.from_dict(alpha).to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "alpha.csv"))
                     pd.DataFrame.from_dict(beta).to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "beta.csv"))
                     pd.DataFrame.from_dict(pi).to_csv(output_path / Path(input_data["target_task"] + "_" + algorithm +  "pi.csv"))
+
     return net, bandit_selects, accs, alpha, beta, pi
 
 
