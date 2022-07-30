@@ -219,7 +219,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                           "target_task": [input_data["target_task"] for i in range(n_epochs)],
                           "algorithm": [algorithm for i in range(n_epochs)],
                           "target_size": [len(input_data["idx_train"]) for i in range(n_epochs)],
-                          "train_acc": val_acc.tolist(),
+                          "train_acc": train_acc.tolist(),
                           "val_acc": val_acc.tolist(),
                           "train_losses": train_losses.tolist()})
         
