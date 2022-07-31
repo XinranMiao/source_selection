@@ -7,6 +7,7 @@ Bandit selection
 
 - `train.py` and `dataset.py`: modules for model training and data loading.
 
+- `check_bandit_results.ipynb`: evaluating bandit selection models on test sets.
 - `bandit_vis.Rmd`: visualizing bandit selection results.
 
 Preparation for dataset and environment
