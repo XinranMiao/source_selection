@@ -42,6 +42,10 @@ for(tar_ball_path in tar_ball_paths) {
 
 ### Check the train / validation accuracy over bandit selection iterations.
 ```{r}
+output_path <- str_c(params$path, "figures/")
+if(!dir.exists(output_path)) {
+  dir.create(output_path)
+}
 bind_rows(result_list) %>%
   tail
 ```
@@ -49,10 +53,14 @@ bind_rows(result_list) %>%
 bind_rows(result_list) %>%
   filter(epoch == 49) %>%
   pivot_longer(c(train_acc, val_acc), names_to = "set", values_to = "accuracy") %>%
+  mutate(combination = str_c(algorithm, "_", set)) %>%
   ggplot() +
-  geom_point(aes(x = iter, y = accuracy, color = algorithm, shape = set)) +
-  facet_grid(target_task ~ target_size) +
+  geom_line(aes(x = iter, y = accuracy, color = combination), size = 1.2) +
+  facet_grid(target_task ~ target_size, scale = "free") +
   bandit_theme
+
+ggsave(filename = str_c(output_path, "acc_by_iteration.png"), 
+       width = 10, height = 8)
 ```
 
 ### Within iterations - model performance over epochs
@@ -63,9 +71,12 @@ bind_rows(result_list) %>%
   pivot_longer(c(train_acc, val_acc), names_to = "set", values_to = "accuracy") %>%
   mutate(combination = str_c(algorithm, "_", set)) %>%
   ggplot +
-  geom_point(aes(x = epoch, y = accuracy,  color = combination)) +
+  geom_line(aes(x = epoch, y = accuracy,  color = combination), size = 1.2) +
     facet_grid(target_task ~ iter) +
   bandit_theme
+
+ggsave(filename = str_c(output_path, "within_iter_320.png"), 
+       width = 12, height = 8)
 ```
 
 
@@ -77,5 +88,7 @@ test_acc %>%
   geom_point(aes(x = target_task, y = test_acc, color = algorithm), size = 2) +
   facet_wrap(~ target_size) +
   bandit_theme
+ggsave(filename = str_c(output_path, "test_acc.png"), 
+       width = 10, height = 4)
 ```
 
