@@ -233,7 +233,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
         if not output_path is None:
             if t % 10 == 0:
                 torch.save(net.state_dict(), output_path / Path(input_data["target_task"] + "_" + algorithm + ".pt" ))
-                save_output(output_path / Path(input_data["target_task"] + "_" + algorithm + "_evaluation.csv" ), accs, accs)
+                save_output(output_path / Path(input_data["target_task"] + "_" + algorithm + "_evaluation.csv" ), accs, bandit_selects = bandit_selects)
 
                 print(train_log)
                 log_df = pd.concat([pd.DataFrame(r) for r in train_log])
