@@ -28,7 +28,7 @@ for(tar_ball_path in tar_ball_paths) {
   
   if (dir.exists(str_c(params$path, "derived_data/"))) {
     result_list[[i]] <- read.csv(str_c(params$path, "derived_data/", list.files(str_c(params$path, "derived_data", ""), pattern = "train_log.csv"))) %>%
-    mutate(target_target = split_name[length(split_name) - 2],
+    mutate(target_task = split_name[length(split_name) - 2],
            algorithm = split_name[length(split_name) - 1],
            target_size = split_name[length(split_name)] %>% as.numeric()) %>%
       rename(epoch = "X")
@@ -67,7 +67,7 @@ ggsave(filename = str_c(output_path, "acc_by_iteration.png"),
 ```{r}
 bind_rows(result_list) %>%
   filter(iter %% 20 ==0,
-         target_size == 320) %>%
+         target_size == 1600) %>%
   pivot_longer(c(train_acc, val_acc), names_to = "set", values_to = "accuracy") %>%
   mutate(combination = str_c(algorithm, "_", set)) %>%
   ggplot +
@@ -75,7 +75,7 @@ bind_rows(result_list) %>%
     facet_grid(target_task ~ iter) +
   bandit_theme
 
-ggsave(filename = str_c(output_path, "within_iter_320.png"), 
+ggsave(filename = str_c(output_path, "within_iter_1600.png"), 
        width = 12, height = 8)
 ```
 
@@ -83,6 +83,7 @@ ggsave(filename = str_c(output_path, "within_iter_320.png"),
 ### Test accuracy
 ```{r}
 test_acc <- read.csv(str_c(params$path, "test_acc.csv"))
+test_acc
 test_acc %>%
   ggplot +
   geom_point(aes(x = target_task, y = test_acc, color = algorithm), size = 2) +
@@ -90,5 +91,114 @@ test_acc %>%
   bandit_theme
 ggsave(filename = str_c(output_path, "test_acc.png"), 
        width = 10, height = 4)
+```
+
+
+
+## Check specific task about which country they choose
+```{r}
+beta_list <- list()
+alpha_list <- list()
+pi_list <- list()
+tar_ball_paths <- list.files(params$path, pattern = "*tar.gz")
+i <- 1
+for(tar_ball_path in tar_ball_paths) {
+  split_name <- tar_ball_path %>% str_remove(".tar.gz") %>% str_split("_") %>% unlist
+  path <- str_c(params$path, tar_ball_path)
+  untar(path, exdir = params$path)
+  
+  file_name <- list.files(str_c(params$path, "derived_data", ""), pattern = "*alpha.csv")
+  if (length(file_name) > 0) {
+    alpha_list[[i]] <- read.csv(str_c(params$path, "derived_data/", list.files(str_c(params$path, "derived_data", ""), pattern = "*alpha.csv"))) %>%
+    mutate(target_task = split_name[length(split_name) - 2],
+           algorithm = split_name[length(split_name) - 1],
+           target_size = split_name[length(split_name)] %>% as.numeric()) %>%
+      rename(iter = "X")
+    
+    beta_list[[i]] <- read.csv(str_c(params$path, "derived_data/", list.files(str_c(params$path, "derived_data", ""), pattern = "*beta.csv"))) %>%
+    mutate(target_task = split_name[length(split_name) - 2],
+           algorithm = split_name[length(split_name) - 1],
+           target_size = split_name[length(split_name)] %>% as.numeric()) %>%
+      rename(iter = "X")
+    
+    pi_list[[i]] <- read.csv(str_c(params$path, "derived_data/", list.files(str_c(params$path, "derived_data", ""), pattern = "*pi.csv"))) %>%
+    mutate(target_task = split_name[length(split_name) - 2],
+           algorithm = split_name[length(split_name) - 1],
+           target_size = split_name[length(split_name)] %>% as.numeric()) %>%
+      rename(iter = "X")
+    
+  i <- i + 1
+  system("rm -r derived_data/chtc_0730/derived_data")
+  }
+  
+}
+```
+
+```{r}
+
+subpath <- str_c(output_path, "parameters/")
+if(!dir.exists(subpath)) {
+  dir.create(subpath)
+}
+tasks <- setdiff(names(alpha_list[[1]]), c("iter", "target_task", "algorithm", "target_size"))
+alpha_df <- bind_rows(alpha_list) %>%
+  pivot_longer(tasks) %>%
+  mutate(para_name = "alpha")
+beta_df <- bind_rows(beta_list) %>%
+  pivot_longer(tasks) %>%
+  mutate(para_name = "beta")
+pi_df <- bind_rows(pi_list) %>%
+  pivot_longer(tasks) %>%
+  mutate(para_name = "pi")
+
+
+bind_rows(alpha_list) %>%
+  pivot_longer(!c(iter, target_target, algorithm, target_size)) %>%
+  ggplot +
+  geom_point(aes(x = iter, y = value, color = name))
+```
+
+###Visualize alpha and beta
+```{r}
+for(task in unique(alpha_df$target_task)) {
+  for(size in c(320, 640, 1600)) {
+    rbind(alpha_df, beta_df) %>%
+  filter(target_task == task,
+         target_size == size,
+         algorithm == "bandit") %>%
+  ggplot +
+  geom_point(aes(x = iter, y = value, color = para_name)) +
+  facet_wrap(. ~ name) +
+  bandit_theme +
+  labs(title = task)
+    
+    ggsave(filename = str_c(subpath, task,  "_", size , "_alphabeta.png"), 
+       width = 10, height = 10)
+  }
+}
+
+```
+
+
+```{r}
+for(task in unique(alpha_df$target_task)) {
+  pi_df %>%
+     mutate(target_size = as.factor(target_size)) %>%
+  filter(target_task == task,
+         algorithm == "bandit",
+         #iter %% 10 == 0
+         ) %>%
+  ggplot +
+   # geom_line(aes(x = iter, y = value, color = target_size)) +
+  geom_smooth(aes(x = iter, y = value, color = target_size)) +
+      geom_hline(yintercept = .6, color = "gray40", size= 2) +
+    geom_hline(yintercept = .2, color = "gray40", size= 2) +
+  facet_wrap(. ~ name) +
+  bandit_theme +
+  labs(title = task)
+    
+    ggsave(filename = str_c(subpath, task, "_pi.png"), 
+       width = 10, height = 10)
+}
 ```
 
