@@ -123,20 +123,21 @@ def check_labels(input_data, labels):
     return input_data
 
     
-def prepare_input_data(geo_df, target_task, labels = None, 
+def prepare_input_data(geo_df, target_task, group_by = "country",
+                       labels = None, 
                        train_size = .6, test_size = .5, target_size = 1600):
     
     geo_dict = geo_df.to_dict()
-    countries = list(set(geo_dict["country"].values()))
-    countries = [x for x in countries if str(x) != "nan"]
-    id_countries = dict.fromkeys(countries)
-    for k in id_countries.keys():
-        id_countries[k] = [v for (i, v) in enumerate(geo_dict["id"]) if geo_dict["country"][i] == k]
+    groups = list(set(geo_dict[group_by].values()))
+    groups = [x for x in groups if str(x) != "nan"]
+    id_groups = dict.fromkeys(groups)
+    for k in id_groups.keys():
+        id_groups[k] = [v for (i, v) in enumerate(geo_dict["id"]) if geo_dict[group_by][i] == k]
 
     # create a dictionary for input data
     
     input_data = {
-        "source_task": list(set(id_countries.keys()) - set([target_task])),
+        "source_task": list(set(id_groups.keys()) - set([target_task])),
         "target_task": target_task
     }
 
@@ -145,14 +146,14 @@ def prepare_input_data(geo_df, target_task, labels = None,
     
     input_data["data_dict"] = {}
     for k in geo_dict.keys():
-        input_data["data_dict"][k] = [geo_dict[k][i] for (i, v) in enumerate(geo_dict["country"].values()) if str(v) != "nan"]
+        input_data["data_dict"][k] = [geo_dict[k][i] for (i, v) in enumerate(geo_dict[group_by].values()) if str(v) != "nan"]
 
 
         
     # split indices for source and target
     
-    input_data["idx_source"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v != input_data["target_task"]]
-    input_data["idx_target"] = [i for (i, v) in enumerate(input_data["data_dict"]['country']) if v == input_data["target_task"]]
+    input_data["idx_source"] = [i for (i, v) in enumerate(input_data["data_dict"][group_by]) if v != input_data["target_task"]]
+    input_data["idx_target"] = [i for (i, v) in enumerate(input_data["data_dict"][group_by]) if v == input_data["target_task"]]
 
     target_labels = list(set([labels[i] for i in input_data["idx_target"]]))
 
@@ -164,7 +165,7 @@ def prepare_input_data(geo_df, target_task, labels = None,
         input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"] if labels[i] in target_labels]
     
     # rewrite the source tasks, because some countries may have non-overlapping labels with the target task
-    input_data["source_task"] = list(set(input_data["source_dict"]["country"]))
+    input_data["source_task"] = list(set(input_data["source_dict"][group_by]))
 
     # resample the target to make the number of samples is fixed
     
@@ -187,6 +188,7 @@ def prepare_input_data(geo_df, target_task, labels = None,
                                                               random_state = 0, shuffle = True)
 
     return input_data
+
 
 def find_geo(country):
     """

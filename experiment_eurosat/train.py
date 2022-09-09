@@ -159,7 +159,9 @@ criteria = torch.nn.CrossEntropyLoss()
 def save_output(output_name, accs, bandit_selects):
     pd.DataFrame.from_dict({"accs": [a.item() for a in accs], "bandit_selects": bandit_selects}).to_csv(output_name)
 
-def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "bandit",iter_samples = 160,
+def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "bandit",
+                     group_by = "cluster",
+                     iter_samples = 160,
                      lr = .01, milestones = milestones,
                      criteria = criteria, output_path = "."):
     # prepare data ---
@@ -203,9 +205,9 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                 bandit_current, pi = get_bandit(input_data, alpha, beta,t, pi)
                 bandit_selects.append(bandit_current)
 
-                current_id = [input_data["source_dict"]["id"][i] for (i, v) in enumerate(input_data["source_dict"]['country']) if v == bandit_current]
+                current_id = [input_data["source_dict"]["id"][i] for (i, v) in enumerate(input_data["source_dict"][group_by]) if v == bandit_current]
             current_id = random.choices(current_id, k = iter_samples)
-            print("---", "At iteration ", t, ", source country is ", bandit_current, "-----\n")
+            print("---", "At iteration ", t, ", source task is ", bandit_current, "-----\n")
         else:
             bandit_current = 0
             current_id = random.sample(input_data["idx_source"], k = iter_samples)
@@ -213,7 +215,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                                                           batch_size = 16, shuffle = True, num_workers = 0)
         net, val_acc, train_acc, train_losses = train(net, current_loader, target_test_loader , criteria, optimizer, epochs = n_epochs, scheduler = scheduler)
 
-        print("At iteration ", t, ", source country is ", bandit_current, ", acc is ", val_acc[-1])
+        print("At iteration ", t, ", source task is ", bandit_current, ", acc is ", val_acc[-1])
         accs += [val_acc[-1]]
 
 
@@ -232,17 +234,17 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
                                            )
         if not output_path is None:
             if t % 10 == 0:
-                torch.save(net.state_dict(), output_path / Path(input_data["target_task"] + "_" + algorithm + ".pt" ))
-                save_output(output_path / Path(input_data["target_task"] + "_" + algorithm + "_evaluation.csv" ), accs, bandit_selects = bandit_selects)
+                torch.save(net.state_dict(), output_path / Path(str(input_data["target_task"]) + "_" + algorithm + ".pt" ))
+                save_output(output_path / Path(str(input_data["target_task"]) + "_" + algorithm + "_evaluation.csv" ), accs, bandit_selects = bandit_selects)
 
                 print(train_log)
                 log_df = pd.concat([pd.DataFrame(r) for r in train_log])
-                log_df.to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "train_log.csv"))
+                log_df.to_csv(output_path /  Path(str(input_data["target_task"]) + "_" + algorithm + "train_log.csv"))
 
                 if algorithm == "bandit":
-                    pd.DataFrame.from_dict(alpha).to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "alpha.csv"))
-                    pd.DataFrame.from_dict(beta).to_csv(output_path /  Path(input_data["target_task"] + "_" + algorithm + "beta.csv"))
-                    pd.DataFrame.from_dict(pi).to_csv(output_path / Path(input_data["target_task"] + "_" + algorithm +  "pi.csv"))
+                    pd.DataFrame.from_dict(alpha).to_csv(output_path /  Path(str(input_data["target_task"]) + "_" + algorithm + "alpha.csv"))
+                    pd.DataFrame.from_dict(beta).to_csv(output_path /  Path(str(input_data["target_task"]) + "_" + algorithm + "beta.csv"))
+                    pd.DataFrame.from_dict(pi).to_csv(output_path / Path(str(input_data["target_task"]) + "_" + algorithm +  "pi.csv"))
 
     return net, bandit_selects, accs, alpha, beta, pi
 
