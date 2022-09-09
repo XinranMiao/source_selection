@@ -6,7 +6,12 @@ import numpy as np
 # geo
 from affine import Affine
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
+
 from pyproj import Proj, transform
+
+
+
 import rasterio
 
 from skimage.transform import resize
@@ -183,3 +188,12 @@ def prepare_input_data(geo_df, target_task, labels = None,
 
     return input_data
 
+def find_geo(country):
+    """
+    Find location of a given country
+    """
+    try:
+        geolocator = Nominatim(user_agent = "user_agent")
+        return geolocator.geocode(country)
+    except GeocoderTimedOut:
+        return find_geo(country)
