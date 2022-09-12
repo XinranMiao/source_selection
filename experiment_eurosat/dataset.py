@@ -189,7 +189,8 @@ def prepare_input_data(geo_df, target_task, group_by = "country",
                                                               test_size = test_size,
                                                               random_state = 0, shuffle = True)
     
-
+    
+    input_data["target_size"] = target_size
     return input_data
 
 

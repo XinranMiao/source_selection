@@ -81,14 +81,19 @@ pi = dict.fromkeys(input_data["source_task"], [0])
 
 # Run model
 net, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
-                                                            n_epochs = 40, n_it = 50,
+                                                            n_epochs = 50, n_it = 50,
                                                             algorithm = algorithm, iter_samples = 160,
                                                            output_path = output_path)
 
 
-test_performance = validation(net, target_test_loader)
+
+# test performance
+test_performance, y_test, yhat_test = validation(net, target_test_loader)
 pd.DataFrame({"test_acc": test_performance,
              "algorithm": algorithm,
              "target_size": target_size,
              "target_task": target_task},
             index = [0]).to_csv(output_path / Path(str(target_task) + "_" + algorithm + "_" + str(target_size) + "_test_acc.csv"))
+test_dict = {"y_test": y_test,
+               "yhat_test": yhat_test}
+pd.DataFrame.from_dict(test_dict).to_csv(output_path / Path(str(target_task) + "_" + algorithm + "_" + str(target_size) + "_test_pred.csv"))
