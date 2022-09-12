@@ -1,8 +1,8 @@
 universe = docker
 docker_image = xinranmiao/cuda_transfer:220718
-log = /home/xmiao27/logs/eurosat-$(country)_$(algorithm)_$(target_size).log
-error = /home/xmiao27/logs/eurosat-$(country)_$(algorithm)_$(target_size).err
-output = /home/xmiao27/logs/eurosat-$(country)_$(algorithm_$(target_size).out
+log = /home/xmiao27/logs/eurosat-$(task)_$(algorithm)_$(target_size).log
+error = /home/xmiao27/logs/eurosat-$(task)_$(algorithm)_$(target_size).err
+output = /home/xmiao27/logs/eurosat-$(task)_$(algorithm_$(target_size).out
 
 executable = bandit.sh
 arguments = $(country) $(algorithm) $(target_size)
@@ -21,6 +21,6 @@ request_memory = 5GB
 request_disk = 10GB
 +LongJob = true
 
-queue country algorithm target_size from arg_clusters.txt
+queue task algorithm target_size from arg_clusters.txt
 #queue
 

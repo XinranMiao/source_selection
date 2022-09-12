@@ -9,7 +9,7 @@ expand.grid(country = c("France", "Latvija", "United Kingdom", "Sverige", "Slove
 
 
 # cluster the countries
-expand.grid(country = 0:4,
+expand.grid(target_task = 0:4,
             algorithm = c("bandit", "random"),
             target_size = c(320, 640, 1600)) %>%
   write.table(file = "arg_clusters.txt", quote = FALSE, sep = ",",

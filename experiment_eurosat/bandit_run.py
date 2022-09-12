@@ -12,12 +12,13 @@ import torch
 import torch.optim as optim
 
 # Set parameters
-EuroSat_Type = 'ALL'    
+EuroSat_Type = 'ALL'   
+
 args = sys.argv
-target_task = str(args[1])
+target_task = int(args[1])
 algorithm = str(args[2])
 target_size = int(args[3])
-print("target is ", target_task, ", algorithm is ", algorithm, ", target size", str(target_size), "\n")
+print("target is ", str(target_task), ", algorithm is ", algorithm, ", target size", str(target_size), "\n")
 
 from pathlib import Path
 output_path = Path("derived_data")
@@ -44,13 +45,15 @@ elif EuroSat_Type == 'ALL':
       os.system('wget http://madm.dfki.de/files/sentinel/EuroSATallBands.zip') #All bands
       os.system('unzip EuroSATallBands.zip')
       download_ON = True
-geo_df = pd.read_csv("metadata.csv")
+geo_df = pd.read_csv("metadata_clustered.csv")
 
 # load data
 data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform = None, extensions = 'tif')
 labels = [v[1] for (i, v) in enumerate(data)]
-input_data = prepare_input_data(geo_df, target_task, labels = labels, target_size = target_size)
 
+input_data = prepare_input_data(geo_df, target_task, group_by = "cluster", 
+                                labels = labels,
+                               target_size = target_size)
 # Set seed
 np.random.seed(0)
 torch.cuda.manual_seed(0)
@@ -78,7 +81,7 @@ pi = dict.fromkeys(input_data["source_task"], [0])
 
 # Run model
 net, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
-                                                            n_epochs = 50, n_it = 100,
+                                                            n_epochs = 40, n_it = 50,
                                                             algorithm = algorithm, iter_samples = 160,
                                                            output_path = output_path)
 
@@ -88,4 +91,4 @@ pd.DataFrame({"test_acc": test_performance,
              "algorithm": algorithm,
              "target_size": target_size,
              "target_task": target_task},
-            index = [0]).to_csv(output_path / Path(target_task + "_" + algorithm + "_" + str(target_size) + "_test_acc.csv"))
+            index = [0]).to_csv(output_path / Path(str(target_task) + "_" + algorithm + "_" + str(target_size) + "_test_acc.csv"))
