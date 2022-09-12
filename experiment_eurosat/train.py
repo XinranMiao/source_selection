@@ -242,7 +242,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
         else:
             bandit_current = 0
             current_id = random.sample(input_data["idx_source"], k = iter_samples)
-           
+            bandit_selects.append(None)
         
         
         # load data for this arm
