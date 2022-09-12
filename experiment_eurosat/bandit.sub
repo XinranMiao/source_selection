@@ -9,7 +9,7 @@ arguments = $(country) $(algorithm) $(target_size)
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
-transfer_input_files = metadata.csv
+transfer_input_files = metadata_clustered.csv
 
 request_cpus = 1
 #requirements =(CUDACapability >= 6) && (has_avx == true)&& (Target.HasCHTCStaging == true)
