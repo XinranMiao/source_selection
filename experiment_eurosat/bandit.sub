@@ -5,7 +5,7 @@ error = /home/xmiao27/logs/eurosat-$(task)_$(algorithm)_$(target_size).err
 output = /home/xmiao27/logs/eurosat-$(task)_$(algorithm_$(target_size).out
 
 executable = bandit.sh
-arguments = $(country) $(algorithm) $(target_size)
+arguments = $(task) $(algorithm) $(target_size)
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
