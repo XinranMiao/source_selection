@@ -164,8 +164,10 @@ def prepare_input_data(geo_df, target_task, group_by = "country",
     # For source data, create a dictionary to record the countries
     input_data["source_dict"] = {}
     
+    # record the locations where `id` corresponds to ones having common labels with the target
+    good_indices = [i for (i, index) in enumerate(input_data["data_dict"]["id"]) if index in input_data["idx_source"]]
     for k in geo_dict.keys():
-        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"]]
+        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in good_indices]
     
     
    
