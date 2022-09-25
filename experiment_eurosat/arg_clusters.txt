@@ -1,3 +1,13 @@
+0,bandit,160
+1,bandit,160
+2,bandit,160
+3,bandit,160
+4,bandit,160
+0,random,160
+1,random,160
+2,random,160
+3,random,160
+4,random,160
 0,bandit,320
 1,bandit,320
 2,bandit,320
@@ -18,13 +28,3 @@
 2,random,640
 3,random,640
 4,random,640
-0,bandit,1600
-1,bandit,1600
-2,bandit,1600
-3,bandit,1600
-4,bandit,1600
-0,random,1600
-1,random,1600
-2,random,1600
-3,random,1600
-4,random,1600
