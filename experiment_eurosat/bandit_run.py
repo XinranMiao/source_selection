@@ -53,7 +53,8 @@ labels = [v[1] for (i, v) in enumerate(data)]
 
 input_data = prepare_input_data(geo_df, target_task, group_by = "cluster", 
                                 labels = labels,
-                               target_size = target_size)
+                               target_size = target_size,
+                               val_size = 320, test_size = 320)
 # Set seed
 np.random.seed(0)
 torch.cuda.manual_seed(0)
@@ -81,7 +82,7 @@ pi = dict.fromkeys(input_data["source_task"], [0])
 
 # Run model
 net, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
-                                                            n_epochs = 15, n_it = 30,
+                                                            n_epochs = 15, n_it = 25,
                                                             algorithm = algorithm, iter_samples = 160,
                                                            output_path = output_path)
 
