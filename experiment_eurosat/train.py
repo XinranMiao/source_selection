@@ -96,9 +96,9 @@ plot = False):
             acc = np.append(acc, accuracy(gt, pred))
 
 
-            #print('Train (epoch {}/{}) [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {}\tLearning Rate:{}'.format(
-           # e, epochs, batch_idx, len(train_),
-       # 100. * batch_idx / len(train_), loss.item(), acc[-1],optimizer.param_groups[0]['lr']))
+            print('Train (epoch {}/{}) [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tAccuracy: {}\tLearning Rate:{}'.format(
+            e, epochs, batch_idx, len(train_),
+        100. * batch_idx / len(train_), loss.item(), acc[-1],optimizer.param_groups[0]['lr']))
 
             iter_ += 1
 
@@ -247,7 +247,7 @@ def bandit_selection(data, input_data, n_epochs = 3, n_it = 2, algorithm = "band
         
         # load data for this arm
         
-        current_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(data, input_data["idx_test"]), 
+        current_loader = torch.utils.data.DataLoader(torch.utils.data.Subset(data, current_id), 
                                                           batch_size = 16, shuffle = True, num_workers = 0)
         
         
