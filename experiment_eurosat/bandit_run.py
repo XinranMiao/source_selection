@@ -45,7 +45,7 @@ elif EuroSat_Type == 'ALL':
       os.system('wget http://madm.dfki.de/files/sentinel/EuroSATallBands.zip') #All bands
       os.system('unzip EuroSATallBands.zip')
       download_ON = True
-geo_df = pd.read_csv("metadata_clustered.csv")
+geo_df = pd.read_csv("metadata_clustered10.csv")
 
 # load data
 data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform = None, extensions = 'tif')
@@ -81,7 +81,7 @@ pi = dict.fromkeys(input_data["source_task"], [0])
 
 # Run model
 net, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
-                                                            n_epochs = 2, n_it = 2,
+                                                            n_epochs = 10, n_it = 25,
                                                             algorithm = algorithm, iter_samples = 160,
                                                            output_path = output_path)
 
