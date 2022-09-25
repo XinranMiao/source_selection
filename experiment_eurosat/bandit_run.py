@@ -81,7 +81,7 @@ pi = dict.fromkeys(input_data["source_task"], [0])
 
 # Run model
 net, bandit_selects, accs, alpha, beta, pi = bandit_selection(data, input_data, 
-                                                            n_epochs = 50, n_it = 50,
+                                                            n_epochs = 2, n_it = 2,
                                                             algorithm = algorithm, iter_samples = 160,
                                                            output_path = output_path)
 

@@ -156,17 +156,22 @@ def prepare_input_data(geo_df, target_task, group_by = "country",
     input_data["idx_target"] = [i for (i, v) in enumerate(input_data["data_dict"][group_by]) if v == input_data["target_task"]]
 
     target_labels = list(set([labels[i] for i in input_data["idx_target"]]))
-
+    input_data["target_labels"] = target_labels
+    
+    # rewrite the source indices, because some countries may have non-overlapping labels with the target task
+    input_data["idx_source"] = [i for i in input_data["idx_source"] if labels[i] in target_labels]
     
     # For source data, create a dictionary to record the countries
-    
     input_data["source_dict"] = {}
-    for k in geo_dict.keys():
-        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"] if labels[i] in target_labels]
     
-    # rewrite the source tasks, because some countries may have non-overlapping labels with the target task
+    for k in geo_dict.keys():
+        input_data["source_dict"][k] = [input_data["data_dict"][k][i] for i in input_data["idx_source"]]
+    
+    
+   
     input_data["source_task"] = list(set(input_data["source_dict"][group_by]))
-
+    
+    input_data["source_labels"] = list(set([labels[i] for i in input_data["idx_source"]]))
     # resample the target to make the number of samples is fixed
     
    # if len(input_data["idx_target"]) >= target_size:
@@ -180,7 +185,7 @@ def prepare_input_data(geo_df, target_task, group_by = "country",
     y_target = [labels[i] for i in input_data["idx_target"]]
     input_data["idx_train"], idx_rest, _, y_rest = train_test_split(input_data["idx_target"],
                                                               y_target,
-                                                             train_size = train_size,
+                                                             train_size = target_size,
                                                               random_state = 0, shuffle = True)
     
     input_data["idx_val"], input_data["idx_test"], _, _ = train_test_split(idx_rest,
@@ -192,6 +197,8 @@ def prepare_input_data(geo_df, target_task, group_by = "country",
     
     input_data["target_size"] = target_size
     return input_data
+
+
 
 
 
