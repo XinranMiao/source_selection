@@ -54,7 +54,7 @@ labels = [v[1] for (i, v) in enumerate(data)]
 input_data = prepare_input_data(geo_df, target_task, group_by = "cluster", 
                                 labels = labels,
                                target_size = target_size,
-                               val_size = 320, test_size = 320)
+                               val_size = 160, test_size = 160)
 # Set seed
 np.random.seed(0)
 torch.cuda.manual_seed(0)
