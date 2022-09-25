@@ -1,7 +1,7 @@
 ---
 title: "Visualizing bandit selection"
 params:
-  path: "derived_data/chtc0912/"
+  path: "derived_data/chtc_0925/"
 output:
   html_document:
     df_print: paged
@@ -44,7 +44,7 @@ for(tar_ball_path in tar_ball_paths) {
            target_size = split_name[length(split_name)] %>% as.numeric()) %>%
       rename(epoch = "X")
   i <- i + 1
-  system("rm -r derived_data/chtc0912/derived_data/")
+  system("rm -r derived_data/chtc_0925/derived_data/")
   }
   
 }
@@ -63,7 +63,7 @@ bind_rows(result_list) %>%
 ```
 ```{r}
 bind_rows(result_list) %>%
-  filter(epoch == 49) %>%
+  filter(epoch == 9) %>%
   pivot_longer(c(train_acc, val_acc), names_to = "set", values_to = "accuracy") %>%
   mutate(combination = str_c(algorithm, "_", set)) %>%
   ggplot() +
