@@ -125,7 +125,7 @@ def check_labels(input_data, labels):
     
 def prepare_input_data(geo_df, target_task, group_by = "country",
                        labels = None, 
-                       train_size = 320, test_size = 320, target_size = 1600):
+                       val_size = 160, test_size = 160, target_size = 1600):
     
     geo_dict = geo_df.to_dict()
     groups = list(set(geo_dict[group_by].values()))
@@ -190,7 +190,7 @@ def prepare_input_data(geo_df, target_task, group_by = "country",
     
     input_data["idx_val"], input_data["idx_test"], _, _ = train_test_split(idx_rest,
                                                               y_rest,
-                                                              train_size = train_size,
+                                                              train_size = val_size,
                                                               test_size = test_size,
                                                               random_state = 0, shuffle = True)
     
