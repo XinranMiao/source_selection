@@ -1,13 +1,13 @@
 ---
 title: "Visualizing bandit selection"
 params:
-  path: "./derived_data/chtc_092503/"
+  path: "./derived_data/chtc_092601/"
 output:
   html_document:
     df_print: paged
 ---
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(caret)
 bandit_theme <- theme_bw() +
@@ -76,7 +76,51 @@ ggsave(filename = str_c(output_path, "acc_by_iteration.png"),
        width = 10, height = 8)
 ```
 
+### test accuracy
+```{r}
+testacc_list <- list()
+tar_ball_paths <- list.files(params$path, pattern = "*tar.gz")
+i <- 1
+for(tar_ball_path in tar_ball_paths) {
+  split_name <- tar_ball_path %>% str_remove(".tar.gz") %>% str_split("_") %>% unlist
+  path <- str_c(params$path, tar_ball_path)
+  untar(path, exdir = params$path)
+  
+  if (dir.exists(str_c(params$path, "derived_data/"))) {
+    
+    # move to next iteration, if we don't have the log file
+    testacc_filepath <-  list.files(str_c(params$path, "derived_data", ""),
+                                                  pattern = "test_acc.csv")
+    if (length(testacc_filepath) != 1) {
+     next
+    }
+    
+    # extract result from log file
+    testacc_list[[i]] <- read.csv(str_c(params$path, "derived_data/", 
+                                       list.files(str_c(params$path, "derived_data", ""),
+                                                  pattern = "test_acc.csv"))) %>%
+    mutate(target_task = split_name[length(split_name) - 2],
+           algorithm = split_name[length(split_name) - 1],
+           target_size = split_name[length(split_name)] %>% as.numeric()) %>%
+      rename(epoch = "X")
+  i <- i + 1
+  #cat("i=",i, ",length = ", length(testacc_list), "\n")
+  system(str_c("rm -r ", params$path, "derived_data/"))
+  }
+  
+}
+```
 
+```{r}
+bind_rows(testacc_list) %>%
+  ggplot() +
+  geom_line(aes(x = target_size, y = test_acc, color = algorithm), size = 1.2) +
+  facet_wrap(target_task ~ ., scale = "free") +
+  bandit_theme
+
+ggsave(filename = str_c(output_path, "testacc.png"), 
+       width = 10, height = 8)
+```
 
 ### check predictions (confusion matrix)
 ```{r}
