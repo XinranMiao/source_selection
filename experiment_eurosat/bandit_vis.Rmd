@@ -1,7 +1,7 @@
 ---
 title: "Visualizing bandit selection"
 params:
-  path: ".//"
+  path: "./derived_data/chtc_092503/"
 output:
   html_document:
     df_print: paged
@@ -9,11 +9,12 @@ output:
 
 ```{r}
 library(tidyverse)
+library(caret)
 bandit_theme <- theme_bw() +
   theme(axis.title = element_text(face = "bold", size = 13),
         strip.text = element_text(face = "bold", size = 12),
         legend.title = element_text(face = "bold", size = 12),
-        legend.text = element_text(size = 12))
+        legend.text = element_text(size = 12)) 
 ```
 
 
@@ -44,7 +45,7 @@ for(tar_ball_path in tar_ball_paths) {
            target_size = split_name[length(split_name)] %>% as.numeric()) %>%
       rename(epoch = "X")
   i <- i + 1
-  system("rm -r derived_data/chtc_092502/derived_data/")
+  system(str_c("rm -r ", params$path, "derived_data/"))
   }
   
 }
@@ -63,7 +64,7 @@ bind_rows(result_list) %>%
 ```
 ```{r}
 bind_rows(result_list) %>%
-  filter(epoch == 9) %>%
+  filter(epoch == 14) %>%
   pivot_longer(c(train_acc, val_acc), names_to = "set", values_to = "accuracy") %>%
   mutate(combination = str_c(algorithm, "_", set)) %>%
   ggplot() +
@@ -79,7 +80,23 @@ ggsave(filename = str_c(output_path, "acc_by_iteration.png"),
 
 ### check predictions (confusion matrix)
 ```{r}
-library(caret)
+create_cm <- function(path, split_name, type = "train") {
+  pred <- read.csv(path) %>%
+    dplyr::select(starts_with("y"))
+  
+  union_labels <- unique(c(pred[, 1], pred[, 2]))
+  pred[, 1] = factor(pred[, 1], levels = as.character(union_labels))
+  pred[, 2] = factor(pred[, 2], levels = as.character(union_labels))
+  confusionMatrix(pred[, 1], pred[, 2])$table %>%
+      as.data.frame() %>%
+    mutate(target_task = split_name[length(split_name) - 2],
+           algorithm = split_name[length(split_name) - 1],
+           target_size = split_name[length(split_name)] %>% as.numeric(),
+           type = type)
+}
+```
+
+```{r}
 pred_list <- list()
 tar_ball_paths <- list.files(params$path, pattern = "*tar.gz")
 i <- 1
@@ -96,30 +113,77 @@ for(tar_ball_path in tar_ball_paths) {
     if (length(pred_filepath) != 3) {
      next
     }
-    train_pred <- read.csv(str_c(params$path, "derived_data/", 
+    path <- str_c(params$path, "derived_data/", 
                                        list.files(str_c(params$path, "derived_data", ""),
-                                                  pattern = "train_pred.csv")))
-    val_pred <- read.csv(str_c(params$path, "derived_data/", 
+                                                  pattern = "train_pred.csv"))
+    train_pred <- create_cm(str_c(params$path, "derived_data/", 
                                        list.files(str_c(params$path, "derived_data", ""),
-                                                  pattern = "val_pred.csv")))
+                                                  pattern = "train_pred.csv")),
+                            split_name,
+                            "train")
     
-    test_pred <- read.csv(str_c(params$path, "derived_data/", 
+    val_pred <- create_cm(str_c(params$path, "derived_data/", 
                                        list.files(str_c(params$path, "derived_data", ""),
-                                                  pattern = "test_pred.csv")))
+                                                  pattern = "val_pred.csv")),
+                          split_name,
+                          "val")
+    
+    test_pred <- create_cm(str_c(params$path, "derived_data/", 
+                                       list.files(str_c(params$path, "derived_data", ""),
+                                                  pattern = "test_pred.csv")),
+                           split_name,
+                           "test")
     # extract result from log file
-    result_list[[i]] <- read.csv(str_c(params$path, "derived_data/", 
-                                       list.files(str_c(params$path, "derived_data", ""),
-                                                  pattern = "train_log.csv"))) %>%
-    mutate(target_task = split_name[length(split_name) - 2],
-           algorithm = split_name[length(split_name) - 1],
-           target_size = split_name[length(split_name)] %>% as.numeric()) %>%
-      rename(epoch = "X")
+    pred_list[[i]] <- rbind(train_pred, val_pred, test_pred)
   i <- i + 1
-  system("rm -r derived_data/chtc_092502/derived_data/")
+  system(str_c("rm -r ", params$path, "derived_data/"))
   }
   
 }
+```
+```{r}
+pred_list %>%
+  bind_rows() %>%
+  filter(target_size == 320,
+         type == "test") %>%
+  ggplot +
+  geom_tile(aes(x = Reference, y = Prediction, fill = Freq)) +
+  scale_fill_distiller(direction = 1) +
+  facet_grid(algorithm ~ target_task, scale = "free") +
+  bandit_theme +
+  scale_x_discrete(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0))
+ggsave(filename = str_c(output_path, "cm_test.png"), 
+       width = 10, height = 8)
 
+
+pred_list %>%
+  bind_rows() %>%
+  filter(target_size == 320,
+         type == "val") %>%
+  ggplot +
+  geom_tile(aes(x = Reference, y = Prediction, fill = Freq)) +
+  scale_fill_distiller(direction = 1) +
+  facet_grid(algorithm ~ target_task, scale = "free") +
+  bandit_theme +
+  scale_x_discrete(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0))
+ggsave(filename = str_c(output_path, "cm_val.png"), 
+       width = 10, height = 8)
+
+pred_list %>%
+  bind_rows() %>%
+  filter(target_size == 320,
+         type == "train") %>%
+  ggplot +
+  geom_tile(aes(x = Reference, y = Prediction, fill = Freq)) +
+  scale_fill_distiller(direction = 1) +
+  facet_grid(algorithm ~ target_task, scale = "free") +
+  bandit_theme +
+  scale_x_discrete(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0))
+ggsave(filename = str_c(output_path, "cm_train.png"), 
+       width = 10, height = 8)
 ```
 
 ### Within iterations - model performance over epochs
