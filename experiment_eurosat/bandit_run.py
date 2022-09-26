@@ -45,7 +45,7 @@ elif EuroSat_Type == 'ALL':
       os.system('wget http://madm.dfki.de/files/sentinel/EuroSATallBands.zip') #All bands
       os.system('unzip EuroSATallBands.zip')
       download_ON = True
-geo_df = pd.read_csv("metadata_clustered10.csv")
+geo_df = pd.read_csv("metadata_clustered10_2.csv")
 
 # load data
 data = torchvision.datasets.DatasetFolder(root=root,loader = iloader, transform = None, extensions = 'tif')
